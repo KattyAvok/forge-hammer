@@ -19,7 +19,7 @@ Branch: `feature/qi-settlement-support`. This is not the Fighter/Donor optimizer
 - `QISettlementCore.donationCapacity`: conservative donor calculation; protected amount = max(minimum reserve, planned costs + buffer), defaulting to QI money/supplies only. Other goods require explicit node-specific allowlisting.
 - The diagnostic module uses these functions, exposes aggregate economy results and clears previous season's snapshots on pending state or a changed season end timestamp.
 - `QISettlementCore.reconcileEconomy` and `auditBuildingStates`: compare direct bag totals with simulated building totals, and summarize population/euphoria by coarse construction/production states.
-- 19 deterministic scenarios in `tests/qi-settlement-core.test.cjs` and `tests/qi-settlement-diagnostics.test.cjs`.
+- 22 deterministic scenarios in `tests/qi-settlement-core.test.cjs` and `tests/qi-settlement-diagnostics.test.cjs`.
 
 ## Run tests locally
 Install Node.js (no additional dependencies required) and execute from the repository root:
@@ -28,7 +28,7 @@ Install Node.js (no additional dependencies required) and execute from the repos
 node --test tests/qi-settlement-core.test.cjs tests/qi-settlement-diagnostics.test.cjs
 ```
 
-The 19 scenarios have been executed successfully in an isolated JavaScript test harness against source retrieved from this GitHub branch. **The actual Node test command and real Chrome integration are not yet verified.**
+The 22 scenarios have been executed successfully in an isolated JavaScript test harness against source retrieved from this GitHub branch. **The actual Node test command and real Chrome integration are not yet verified.**
 
 ## Initial live observation (2026-10-08)
 A user-supplied, sanitized schema-v1 diagnostic report confirmed:
@@ -41,8 +41,53 @@ A user-supplied, sanitized schema-v1 diagnostic report confirmed:
 
 The schema-v2 diagnostic adds `economyComparison` and `buildingStateAudit`. Its purpose is to identify state groups contributing to these discrepancies without exposing map positions, account identifiers, building IDs or exact personal resource holdings.
 
+### Second city: independent schema-v2 observation
+A second live report came from a different QI settlement, evidenced by a different
+map size and economic state (54 entities / 19 unlocked areas, compared with 70 / 21
+in city A). Both were difficulty 8 and both contained exactly 3 construction-like states.
+
+| Anonymized difference (map-derived minus bag-observed) | City A | City B |
+| --- | ---: | ---: |
+| Total population | +150 | 0 |
+| Available population | +150 | 0 |
+| Happiness | +750 | +2,925 |
+| Used population | 0 | 0 |
+| Construction-group population provided | 150 | 0 |
+| Construction-group happiness | 750 | 2,925 |
+
+Both snapshots match the following **hypothesis** exactly: positive population and
+happiness bonuses of construction-state buildings are counted in the metadata-only
+sum but are not yet active in the current game resource bag. Population consumption
+from construction-state buildings appears accounted for already, because used
+population differences are zero. This is strong cross-city evidence, **not proof for
+all construction-state variants**.
+
+The new `QISettlementCore.attributeConstructionGap` function checks whether a
+construction-group contribution exactly matches the observed difference and
+reports `exactMatch: true/false/null`; it does not alter the game's current values
+or presume that matching establishes causality. The diagnostic now includes
+`constructionAttribution` when a comparable state group is available.
+
+### Known issues and next validation
+- In both reports, `economy.complete` is true while `buildingStateAudit` counts
+  16 entries with absent/non-object static resource blocks, mostly in producing
+  and idle groups. These are **different definitions of completeness**:
+  `deriveEconomy` treats absent stat keys as zero, while the audit marks absent
+  blocks as unknown. Do not interpret the audit's unknown count as a proven
+  defect or assert all metadata is complete without examining those types.
+- The diagnostic's map-derived counts are updated only when a fresh
+  `CityMapService.getCityMap` response arrives. A post-construction test should
+  **leave and re-enter QI** (or reload normally) and confirm this event appeared
+  before comparing snapshots. No extra requests to the game should be sent.
+- Distinct source-world identities are not included in the sanitized report.
+  Future stored preferences should be scoped to game world + player, but player
+  identifiers must not be included in diagnostic output.
+- The first report shown for the supposed second city repeated all values of
+  city A; it is **not** treated as independent evidence. The 54-entity report is
+  the second distinct observation.
+
 ## Unconfirmed: verify with real game traffic
-1. **Confirmed in one session:** `PlayerMain` bag includes QI resources. Verify whether it updates correctly after purchases, donations and production collections.
+1. **Confirmed in two QI city samples:** `PlayerMain` bag includes QI resources. Verify whether it updates correctly after purchases, donations and production collections.
 2. QI map was observed; confirm grid ID stability through repeated entry/resume and action sequences.
 3. Reliable incremental updates and whether the existing city-map handler exposes all construction/production changes.
 4. Available fields/endpoints for army composition, battle boosts, expansion costs, and current QI action points.
@@ -64,7 +109,7 @@ Diagnostic collection is **disabled by default**. It contains only event counts,
 - The report is in-memory only and resets on page reload. The opt-in flag alone persists (as `Hammer.QISettlementDiagnosticsEnabled`). This lets startup responses be observed after reload.
 - A missing source or unobserved resource is unknown, never interpreted as zero.
 - The report may expose numeric QI holdings; do not share it publicly without review.
-- Static review is not a substitute for a test in Chrome. One schema-v1 live data capture was supplied by the user; schema-v2 reconciliation and later features have not been live-tested.
+- Static review is not a substitute for a test in Chrome. Two distinct live city snapshots have been provided (schema v1 for city A and schema v2 for both city A and city B); the new construction-attribution addition and later features have not been live-tested.
 
 ## Next smallest step
 Rerun the enabled diagnostics after reloading the extension and game. Collect `economyComparison`, `buildingStateAudit`, and changed `events` after one normal building completion/collection to determine whether the discrepancy comes from construction state or observation timing. Confirm availability of combat stats, military units and expansion costs. Then implement the read-only Fighter/Donor panel on the validated data. The current core performs economic calculations only; it does **not** claim to optimize strategy or issue game actions.
