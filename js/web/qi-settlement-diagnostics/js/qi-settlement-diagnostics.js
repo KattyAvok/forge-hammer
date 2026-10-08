@@ -22,7 +22,6 @@
     ];
     const allowedMethod = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
     const allowedType = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
-    const allowedResource = /^guild_raids_[a-z0-9_]{1,55}$/;
 
     let enabled = FH.Storage.getItem(KEY) === '1';
     let stats = initialState();
@@ -34,6 +33,7 @@
             qiRunning: null,
             difficultyLevel: null,
             cityMap: null,
+            economy: null,
             resourceBagTypes: {},
             qiResources: {},
             resourcesObservedIn: null,
@@ -63,16 +63,8 @@
     }
 
     function readQIResources(responseData, method) {
-        const bag = responseData?.resources?.resources || responseData?.resources || responseData;
-        if (!bag || typeof bag !== 'object' || Array.isArray(bag)) return;
-        const found = {};
-        for (const [key, value] of Object.entries(bag)) {
-            if (!allowedResource.test(key)) continue;
-            const quantity = safeNumber(value);
-            if (quantity === null) continue;
-            if (Object.keys(found).length >= MAX_RESOURCE_TYPES) break;
-            found[key] = quantity;
-        }
+        const found = globalThis.QISettlementCore.normalizeQIStock(responseData);
+        if (Object.keys(found).length > MAX_RESOURCE_TYPES) return;
         if (Object.keys(found).length) {
             stats.qiResources = found;
             stats.resourcesObservedIn = method;
@@ -103,9 +95,17 @@
         }
 
         if (service === 'GuildRaidsService' && method === 'getState') {
-            stats.qiRunning = response?.__class__ === 'GuildRaidsRunningState' ? true :
-                response?.__class__ === 'GuildRaidsPendingState' ? false : null;
-            stats.difficultyLevel = safeNumber(response?.raidInstance?.difficultyLevel);
+            const run = globalThis.QISettlementCore.normalizeRun(response);
+            if (run.status === 'pending') {
+                // Previous season must not leak into a pending/new run.
+                stats.cityMap = null;
+                stats.economy = null;
+                stats.qiResources = {};
+                stats.resourcesObservedIn = null;
+            }
+            stats.qiRunning = run.status === 'running' ? true :
+                run.status === 'pending' ? false : null;
+            stats.difficultyLevel = run.difficultyLevel;
             recordEvent(service, method);
             return;
         }
@@ -113,14 +113,10 @@
         if (service === 'CityMapService' && method === 'getCityMap') {
             if (response?.gridId !== 'guild_raids' && !qiMapActive) return;
             const entities = Array.isArray(response?.entities) ? response.entities : null;
-            const areas = Array.isArray(response?.unlocked_areas) ? response.unlocked_areas : null;
-            stats.cityMap = {
-                entityCount: entities ? entities.length : null,
-                unlockedAreaCount: areas ? areas.length : null,
-                hasEntityIdentifiers: entities ? entities.some(x => x != null && x.cityentity_id != null) : null,
-                hasEntityStates: entities ? entities.some(x => x != null && x.state != null) : null,
-                producingCount: entities ? entities.filter(x => x?.state?.__class__ === 'ProducingState').length : null
-            };
+            stats.cityMap = globalThis.QISettlementCore.normalizeMap(response);
+            stats.economy = globalThis.QISettlementCore.deriveEconomy(
+                entities, FH.Main?.CityEntities
+            );
             recordEvent(service, method);
             return;
         }
