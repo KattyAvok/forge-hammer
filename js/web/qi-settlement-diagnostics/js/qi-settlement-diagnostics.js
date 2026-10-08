@@ -25,6 +25,7 @@
 
     let enabled = FH.Storage.getItem(KEY) === '1';
     let stats = initialState();
+    let lastRunningSeasonEnd = null;
 
     function initialState() {
         return {
@@ -46,10 +47,6 @@
         };
     }
 
-    function safeNumber(value) {
-        return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
-    }
-
     function eventName(service, method) {
         return allowedMethod.test(method || '') ? service + '.' + method : null;
     }
@@ -60,6 +57,13 @@
         if (!Object.prototype.hasOwnProperty.call(stats.events, key) &&
             Object.keys(stats.events).length >= MAX_EVENT_TYPES) return;
         stats.events[key] = (stats.events[key] || 0) + 1;
+    }
+
+    function clearSeasonSnapshot() {
+        stats.cityMap = null;
+        stats.economy = null;
+        stats.qiResources = {};
+        stats.resourcesObservedIn = null;
     }
 
     function readQIResources(responseData, method) {
@@ -97,11 +101,14 @@
         if (service === 'GuildRaidsService' && method === 'getState') {
             const run = globalThis.QISettlementCore.normalizeRun(response);
             if (run.status === 'pending') {
-                // Previous season must not leak into a pending/new run.
-                stats.cityMap = null;
-                stats.economy = null;
-                stats.qiResources = {};
-                stats.resourcesObservedIn = null;
+                lastRunningSeasonEnd = null;
+                clearSeasonSnapshot();
+            } else if (run.status === 'running' &&
+                typeof response?.endsAt === 'number' && Number.isFinite(response.endsAt)) {
+                if (lastRunningSeasonEnd !== null && lastRunningSeasonEnd !== response.endsAt)
+                    clearSeasonSnapshot();
+                // This timestamp remains in memory and is never part of the report.
+                lastRunningSeasonEnd = response.endsAt;
             }
             stats.qiRunning = run.status === 'running' ? true :
                 run.status === 'pending' ? false : null;
@@ -111,6 +118,7 @@
         }
 
         if (service === 'CityMapService' && method === 'getCityMap') {
+            if (typeof response?.gridId === 'string' && response.gridId !== 'guild_raids') return;
             if (response?.gridId !== 'guild_raids' && !qiMapActive) return;
             const entities = Array.isArray(response?.entities) ? response.entities : null;
             stats.cityMap = globalThis.QISettlementCore.normalizeMap(response);
@@ -147,16 +155,19 @@
             enabled = true;
             FH.Storage.setItem(KEY, '1');
             stats = initialState();
+            lastRunningSeasonEnd = null;
             return 'QI diagnostics enabled. Reload the game and enter QI to collect a fresh snapshot.';
         },
         disable() {
             enabled = false;
             FH.Storage.removeItem(KEY);
             stats = initialState();
+            lastRunningSeasonEnd = null;
             return 'QI diagnostics disabled; in-memory data cleared.';
         },
         clear() {
             stats = initialState();
+            lastRunningSeasonEnd = null;
         },
         report() {
             // No direct references to mutable internal state escape the module.
