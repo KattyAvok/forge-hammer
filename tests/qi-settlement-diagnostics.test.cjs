@@ -43,3 +43,17 @@ test('main-city map does not overwrite QI state',()=>{
   t.send('CityMapService','getCityMap',{gridId:'main',entities:[{}]});
   assert.equal(t.api.report().cityMap,null);
 });
+
+test('a new QI season end time invalidates data from the previous run',()=>{
+  const t=harness();t.api.enable();t.FH.ActiveMap='guild_raids';
+  t.send('GuildRaidsService','getState',{__class__:'GuildRaidsRunningState',endsAt:10000});
+  t.send('ResourceService','getPlayerResources',{resources:{guild_raids_money:250}});
+  t.send('GuildRaidsService','getState',{__class__:'GuildRaidsRunningState',endsAt:20000});
+  assert.equal(t.api.report().qiResources.guild_raids_money,undefined);
+  assert.equal(t.api.report().qiRunning,true);
+});
+test('explicit non-QI map payload cannot overwrite QI map during transition',()=>{
+  const t=harness();t.api.enable();t.FH.ActiveMap='guild_raids';
+  t.send('CityMapService','getCityMap',{gridId:'main',entities:[{}]});
+  assert.equal(t.api.report().cityMap,null);
+});
