@@ -148,3 +148,56 @@ test('donation capacity excludes non-spendable pseudo-resources by default',()=>
         ['guild_raids_rope']);
     assert.equal(withGoods.guild_raids_rope.available,10);
 });
+
+
+test('city A: construction exactly explains +150 population and +750 euphoria', () => {
+    const compared=core.reconcileEconomy({
+        totalPopulation:1750, availablePopulation:400, euphoria:5300
+    },{
+        guild_raids_total_population:1600, guild_raids_population:250,
+        guild_raids_happiness:4550
+    });
+    const evidence=core.attributeConstructionGap(compared,{
+        construction:{
+            count:3,populationProvided:150,populationUsed:120,euphoria:750,
+            missingDefinitionCount:0,unknownStatCount:0
+        }
+    });
+    assert.equal(evidence.status,'evaluated');
+    assert.equal(evidence.exactMatch,true);
+    assert.equal(evidence.usedPopulationMatches,true);
+});
+
+test('city B: zero population discrepancy and +2925 euphoria match construction', () => {
+    const compared=core.reconcileEconomy({
+        totalPopulation:1030, availablePopulation:210, euphoria:5085
+    },{
+        guild_raids_total_population:1030, guild_raids_population:210,
+        guild_raids_happiness:2160
+    });
+    const evidence=core.attributeConstructionGap(compared,{
+        construction:{
+            count:3,populationProvided:0,populationUsed:0,euphoria:2925,
+            missingDefinitionCount:0,unknownStatCount:0
+        }
+    });
+    assert.equal(evidence.exactMatch,true);
+    assert.equal(evidence.populationMatches,true);
+    assert.equal(evidence.euphoriaMatches,true);
+});
+
+test('construction attribution does not claim exact match on missing or conflicting evidence', () => {
+    const compared=core.reconcileEconomy(
+        {totalPopulation:150,availablePopulation:150,euphoria:800},
+        {guild_raids_total_population:100,guild_raids_population:100,guild_raids_happiness:200}
+    );
+    assert.equal(core.attributeConstructionGap(compared,{}),null);
+    assert.equal(core.attributeConstructionGap(compared,{
+        construction:{count:1,populationProvided:50,euphoria:600,
+            missingDefinitionCount:0,unknownStatCount:1}
+    }).exactMatch,null);
+    assert.equal(core.attributeConstructionGap(compared,{
+        construction:{count:1,populationProvided:50,euphoria:500,
+            missingDefinitionCount:0,unknownStatCount:0}
+    }).exactMatch,false);
+});
