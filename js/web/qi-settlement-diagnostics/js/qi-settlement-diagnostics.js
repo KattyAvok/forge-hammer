@@ -29,12 +29,14 @@
 
     function initialState() {
         return {
-            schemaVersion: 1,
+            schemaVersion: 2,
             events: {},
             qiRunning: null,
             difficultyLevel: null,
             cityMap: null,
             economy: null,
+            economyComparison: null,
+            buildingStateAudit: null,
             resourceBagTypes: {},
             qiResources: {},
             resourcesObservedIn: null,
@@ -42,7 +44,9 @@
             notes: [
                 'Only whitelisted QI resource quantities and structural counts are captured.',
                 'Unknown fields, building IDs, player/guild IDs, request payloads and raw responses are never retained.',
-                'A missing resource is unknown, not zero; production is not the same as inventory.'
+                'A missing resource is unknown, not zero; production is not the same as inventory.',
+                'Economy comparison uses direct resource-bag values when available; map totals may include inactive buildings.',
+                'State audit groups are heuristic categories, not evidence that a building is active or inactive.'
             ]
         };
     }
@@ -62,8 +66,16 @@
     function clearSeasonSnapshot() {
         stats.cityMap = null;
         stats.economy = null;
+        stats.economyComparison = null;
+        stats.buildingStateAudit = null;
         stats.qiResources = {};
         stats.resourcesObservedIn = null;
+    }
+
+    function updateEconomyComparison() {
+        stats.economyComparison = globalThis.QISettlementCore.reconcileEconomy(
+            stats.economy, stats.qiResources
+        );
     }
 
     function readQIResources(responseData, method) {
@@ -72,6 +84,7 @@
         if (Object.keys(found).length) {
             stats.qiResources = found;
             stats.resourcesObservedIn = method;
+            updateEconomyComparison();
         }
     }
 
@@ -125,6 +138,10 @@
             stats.economy = globalThis.QISettlementCore.deriveEconomy(
                 entities, FH.Main?.CityEntities
             );
+            stats.buildingStateAudit = globalThis.QISettlementCore.auditBuildingStates(
+                entities, FH.Main?.CityEntities
+            );
+            updateEconomyComparison();
             recordEvent(service, method);
             return;
         }
