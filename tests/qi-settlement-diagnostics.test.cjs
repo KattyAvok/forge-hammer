@@ -57,3 +57,23 @@ test('explicit non-QI map payload cannot overwrite QI map during transition',()=
   t.send('CityMapService','getCityMap',{gridId:'main',entities:[{}]});
   assert.equal(t.api.report().cityMap,null);
 });
+
+test('reports bag/map differences without exposing building or player IDs',()=>{
+  const t=harness(); t.api.enable();t.FH.ActiveMap='guild_raids';
+  t.FH.Main.CityEntities.culture={components:{AllAge:{staticResources:{resources:{resources:{guild_raids_happiness:750}}}}}};
+  t.send('CityMapService','getCityMap',{gridId:'guild_raids',entities:[
+    {id:4355,cityentity_id:'home',state:{__class__:'ProducingState'}},
+    {id:4356,cityentity_id:'culture',state:{__class__:'ConstructionState'}}
+  ]});
+  t.send('ResourceService','getPlayerResourceBag',{type:{value:'PlayerMain'},
+    resources:{resources:{guild_raids_total_population:50,guild_raids_population:50,
+      guild_raids_happiness:0,guild_raids_money:123}}
+  });
+  const r=t.api.report();
+  assert.equal(r.schemaVersion,2);
+  assert.equal(r.economyComparison.source,'resourceBag');
+  assert.equal(r.economyComparison.calculatedMinusObserved.totalPopulation,50);
+  assert.equal(r.economyComparison.calculatedMinusObserved.euphoria,750);
+  assert.equal(r.buildingStateAudit.construction.euphoria,750);
+  assert.equal(JSON.stringify(r).includes('4356'),false);
+});
