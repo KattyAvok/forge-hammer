@@ -153,6 +153,35 @@
     return states;
   }
 
+  // Evidence check, not a confirmed game mechanic: compare the mismatch with
+  // effects of buildings in construction-like states. Never infer an active bonus.
+  function attributeConstructionGap(comparison, stateAudit) {
+    const row = stateAudit?.construction;
+    const delta = comparison?.calculatedMinusObserved;
+    if (!row || !delta || row.count < 1) return null;
+    const required = [
+      delta.totalPopulation, delta.availablePopulation, delta.euphoria,
+      comparison?.usedPopulationDifference, row.populationProvided, row.euphoria
+    ];
+    if (!required.every(finiteNumber) ||
+        row.missingDefinitionCount !== 0 || row.unknownStatCount !== 0) {
+      return { constructionCount: row.count, status: 'insufficient-data', exactMatch: null };
+    }
+    const populationMatches =
+      delta.totalPopulation === row.populationProvided &&
+      delta.availablePopulation === row.populationProvided;
+    const euphoriaMatches = delta.euphoria === row.euphoria;
+    const usedPopulationMatches = comparison.usedPopulationDifference === 0;
+    return {
+      constructionCount: row.count,
+      status: 'evaluated',
+      populationMatches,
+      euphoriaMatches,
+      usedPopulationMatches,
+      exactMatch: populationMatches && euphoriaMatches && usedPopulationMatches
+    };
+  }
+
   // Computes safe donation amounts per resource; never assumes missing stock is 0.
   function donationCapacity(stock, plannedCosts, minimumReserves = {}, buffer = {}, allowedResources = ['guild_raids_money', 'guild_raids_supplies']) {
     if (![stock, plannedCosts, minimumReserves, buffer].every(plainObject) ||
@@ -179,7 +208,7 @@
 
   return Object.freeze({
     normalizeRun, normalizeQIStock, normalizeMap, deriveEconomy,
-    reconcileEconomy, auditBuildingStates, donationCapacity
+    reconcileEconomy, auditBuildingStates, attributeConstructionGap, donationCapacity
   });
 })();
     if (typeof module === 'object' && module.exports) module.exports = core;
