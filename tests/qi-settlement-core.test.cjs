@@ -91,3 +91,60 @@ test('external identifiers and unrelated resource keys are ignored', () => {
         {guild_raids_money:60,player_id:5});
     assert.deepEqual(Object.keys(result),['guild_raids_money']);
 });
+
+test('reconcile building totals against observed QI resource bag', () => {
+    const calculated = {
+        totalPopulation: 400, availablePopulation: 200, euphoria: 1000
+    };
+    const observedStock = {
+        guild_raids_total_population: 250,
+        guild_raids_population: 50,
+        guild_raids_happiness: 250
+    };
+    const r = core.reconcileEconomy(calculated, observedStock);
+    assert.equal(r.source, 'resourceBag');
+    assert.equal(r.hasMismatch, true);
+    assert.equal(r.calculatedMinusObserved.totalPopulation, 150);
+    assert.equal(r.calculatedMinusObserved.availablePopulation, 150);
+    assert.equal(r.calculatedMinusObserved.euphoria, 750);
+    assert.equal(r.observedUsedPopulation, 200);
+    assert.equal(r.calculatedUsedPopulation, 200);
+    assert.equal(r.usedPopulationDifference, 0);
+    assert.equal(r.observed.euphoriaFactor, 1);
+});
+
+test('incomplete observations cannot be represented as zeros', () => {
+    const r = core.reconcileEconomy({totalPopulation:100,availablePopulation:25,euphoria:200}, {});
+    assert.equal(r.source, 'unknown');
+    assert.equal(r.observed.availablePopulation,null);
+    assert.equal(r.calculatedMinusObserved.euphoria,null);
+    assert.equal(r.hasMismatch,false);
+});
+
+test('building state grouping summarizes metadata but never leaks entity ids', () => {
+    const groups = core.auditBuildingStates(
+        [
+            {id:999,cityentity_id:'h',state:{__class__:'ProducingState'}},
+            {id:998,cityentity_id:'c',state:{__class__:'UnderConstructionState'}},
+            {id:997,cityentity_id:'f',state:{__class__:'IdleState'}}
+        ],
+        {h:def(150,0),c:def(0,750),f:def(-30,0)}
+    );
+    assert.equal(groups.producing.populationProvided,150);
+    assert.equal(groups.construction.euphoria,750);
+    assert.equal(groups.idle.populationUsed,30);
+    assert.equal(groups.producing.count,1);
+    assert.equal(JSON.stringify(groups).includes('999'),false);
+});
+
+test('donation capacity excludes non-spendable pseudo-resources by default',()=>{
+    const available = core.donationCapacity({
+        guild_raids_money:400,guild_raids_supplies:100,
+        guild_raids_happiness:500,guild_raids_population:30,
+        guild_raids_action_points:5000,guild_raids_rope:20
+    }, {guild_raids_money:150});
+    assert.deepEqual(Object.keys(available), ['guild_raids_money','guild_raids_supplies']);
+    const withGoods = core.donationCapacity({guild_raids_rope:20},{guild_raids_rope:10},{},{},
+        ['guild_raids_rope']);
+    assert.equal(withGoods.guild_raids_rope.available,10);
+});
