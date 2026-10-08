@@ -37,6 +37,7 @@
             economy: null,
             economyComparison: null,
             buildingStateAudit: null,
+            constructionAttribution: null,
             resourceBagTypes: {},
             qiResources: {},
             resourcesObservedIn: null,
@@ -68,6 +69,7 @@
         stats.economy = null;
         stats.economyComparison = null;
         stats.buildingStateAudit = null;
+        stats.constructionAttribution = null;
         stats.qiResources = {};
         stats.resourcesObservedIn = null;
     }
@@ -75,6 +77,9 @@
     function updateEconomyComparison() {
         stats.economyComparison = globalThis.QISettlementCore.reconcileEconomy(
             stats.economy, stats.qiResources
+        );
+        stats.constructionAttribution = globalThis.QISettlementCore.attributeConstructionGap(
+            stats.economyComparison, stats.buildingStateAudit
         );
     }
 
