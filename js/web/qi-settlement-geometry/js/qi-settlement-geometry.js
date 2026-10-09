@@ -64,7 +64,8 @@
         // footprints are known. We do not assume a specific road level.
         let connectedRoads=null;
         if(streets.size&&main.size) {
-            connectedRoads=new Set(),pending=[];
+            connectedRoads=new Set();
+            const pending=[];
             const adjacent=t=>{
                 const [x,y]=t.split(',').map(Number);
                 return [key(x-1,y),key(x+1,y),key(x,y-1),key(x,y+1)];
