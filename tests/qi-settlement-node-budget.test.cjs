@@ -67,3 +67,15 @@ test('non-QI and invalid resources do not become a valid price',()=>{
  assert.equal(r.coverage.explicitlyPricedCandidates,0);
  assert.equal(r.donationInstructionAllowed,false);
 });
+
+test('unknown positive resource in otherwise valid QI node price cannot be ignored',()=>{
+ const snapshot=nodeBudget.extract({nodes:[{
+   requirements:{resources:{guild_raids_money:1000,diamonds:10}}
+ }]});
+ const r=nodeBudget.evaluate(snapshot,{guild_raids_money:2000},
+    {guild_raids_money:0});
+ assert.equal(r.coverage.explicitlyPricedCandidates,0);
+ assert.equal(r.coverage.unknownBalances,1);
+ assert.equal(r.coverage.grossBudgetCovered,0);
+ assert.equal(r.donationInstructionAllowed,false);
+});
