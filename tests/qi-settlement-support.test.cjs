@@ -76,6 +76,7 @@ test('profile settings remain scoped to world and player',()=>{
     t.store.set('QISettlementSupportSettingsV1_world1_123',
         JSON.stringify({profile:'donor',stage:'day4b',reserveMoney:'500',reserveSupplies:'100'}));
     assert.equal(t.api.Status().selectedProfile,'donor');
+    assert.equal(t.api.Status().reserveMode,'manual-protected');
     assert.equal(t.api.Status().selectedStage,'day4b');
     t.FH.World='world2';
     assert.equal(t.api.Status().selectedProfile,'fighter');
@@ -297,4 +298,17 @@ test('Donor with no reserves still sees gross budget and missing Clapboard coins
     assert.match(output,/Clapboard House — chybí money:/);
     assert.match(output,/Nezadané rezervy se NEPOVAŽUJÍ za nulové/);
     assert.doesNotMatch(output,/Bez rezervy nepočítáme bezpečný přebytek\.\s*Scénáře nelze/);
+});
+
+test('Donor without reserves is explicitly gross-only, never protected',()=>{
+    const t=setup();
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'',reserveSupplies:''}));
+    assert.equal(t.api.Status().reserveMode,'gross-only');
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'500',reserveSupplies:''}));
+    assert.equal(t.api.Status().reserveMode,'gross-only');
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'500',reserveSupplies:'200'}));
+    assert.equal(t.api.Status().reserveMode,'manual-protected');
 });
