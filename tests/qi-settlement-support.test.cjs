@@ -181,6 +181,7 @@ test('visible QI panel renders selected guide, observed stock and donor reserves
     const collect=node=>node.raw+' '+node.children.map(n=>typeof n==='string'?n:collect(n)).join(' ');
     const output=collect(body);
     assert.match(output,/Bakery/);
+    assert.match(output,/Scénáře až dvou investičních rozhodnutí/);
     assert.match(output,/Donor/);
     assert.match(output,/QI mince/);
     assert.match(output,/Přebytek mincí/);
