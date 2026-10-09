@@ -59,7 +59,9 @@ test('corroborated time permits only optimistic no-construction-delay projection
             productionGain:{guild_raids_supplies:2000,guild_raids_money:-100}}
     ]};
     const x=timing.theoreticalPlanHorizon(plan,8,calibration);
-    assert.equal(x.status,'optimistic-upper-bound');
+    assert.equal(x.status,'zero-delay-comparison');
+    assert.equal(x.optimisticUpperBound,null);
+    assert.equal(x.comparisonOnly,true);
     assert.equal(x.possibleResourceDelta.guild_raids_supplies,2400);
     assert.equal(x.possibleResourceDelta.guild_raids_money,-200);
     assert.equal(x.spendableGains,null);
@@ -73,4 +75,22 @@ test('unknown production option duration blocks future gains even with calibrate
     });
     assert.equal(x.status,'unknown-cycle-duration');
     assert.equal(x.optimisticUpperBound,null);
+});
+
+test('signed net differences cannot be described as a benefit upper bound',()=>{
+    const calibrated={status:'unit-corroborated',unit:'seconds'};
+    const plan={steps:[
+        {type:'sell',building:'Old Brewery',
+            rawProductionOptionTime:3600,
+            productionLoss:{guild_raids_money:2000}},
+        {type:'build',building:'Printer',
+            rawProductionOptionTime:7200,
+            productionGain:{guild_raids_money:500}}
+    ]};
+    const r=timing.theoreticalPlanHorizon(plan,2,calibrated);
+    assert.equal(r.status,'zero-delay-comparison');
+    assert.equal(r.possibleResourceDelta.guild_raids_money,-3500);
+    assert.equal(r.optimisticUpperBound,null);
+    assert.equal(r.spendableGains,null);
+    assert.equal(r.actionable,false);
 });
