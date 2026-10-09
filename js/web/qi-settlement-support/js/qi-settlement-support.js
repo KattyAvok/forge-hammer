@@ -512,19 +512,19 @@
             panel.append(hint('POZOR: Jde o rozpočtovou simulaci, ne optimalizované pořadí akcí. Nabídka, prostor, cesty, délka výstavby a zbývající QI čas nejsou zatím ověřené.'));
         }
 
-        panel.append(section('Dvou-krokové ekonomické scénáře'));
+        panel.append(section('Scénáře až dvou investičních rozhodnutí'));
         const sequence=sequencePreview();
         if(!sequence) {
             panel.append(hint('Pro navazující rozhodování chybí aktuální mapa nebo sklad.'));
         } else if(sequence.plans.length===0) {
             panel.append(hint('V rozsahu dvou kroků nebyl nalezen pozitivní ekonomický scénář splňující známá omezení.'));
         } else {
-            panel.append(hint('Porovnání několika variant podle heuristického skóre. Prostor, cesty, nabídka staveb, výrobní časy a ceny uzlů nejsou plně ověřené.'));
+            panel.append(hint('Porovnání variant se sdíleným rozpočtem; přestavba může zahrnout prodej i nákup. Index je orientační, není to ověřená optimální strategie ani doporučení k provedení. Nejsou potvrzené cesty, nabídka, čas výroby a ceny uzlů.'));
             const ranked=$('<ol class="qi-support-scenarios"/>');
             for(const [index,plan] of sequence.plans.slice(0,3).entries()) {
                 const item=$('<li/>');
                 item.append($('<strong/>').text('Varianta '+(index+1)+
-                    ' · skóre '+numberText(plan.heuristicScore)));
+                    ' · heuristický index '+plan.heuristicScore.toFixed(3)));
                 item.append($('<p/>').text(plan.steps.map(step=>
                     (step.type==='sell'?'Prodat ':'Postavit ')+step.building
                 ).join(' → ')));
