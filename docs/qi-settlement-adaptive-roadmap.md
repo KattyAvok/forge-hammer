@@ -241,6 +241,54 @@ Tests: 69/69 isolated JavaScript cases pass, including separate covered
 Bakery and missing-money Clapboard in a synthetic Donor snapshot with
 no configured reserves. Chrome acceptance of v1.8.1.6 is still pending.
 
+## 2026-10-09: v1.8.1.7 advisor/simulator disagreement from live screenshots
+
+The user confirmed v1.8.1.6 loaded. The upper Donor analysis listed several
+gross-covered buildings (Frame House, Bakery, Multistorey House, Alchemist,
+Tannery) and correctly showed Clapboard House as money-blocked (115,600 QI
+coins missing). However, the lower `Ekonomické varianty z aktuálních cen`
+panel said no scenario met financial/population constraints.
+
+The source review identified **two plausible causes** that had no distinct
+diagnostic status:
+1. `advisor.rankBuilds()` identified a particular catalog entry, but the
+   simulator looked it up again by the non-unique display `name`, potentially
+   selecting a different metadata definition with no valid price.
+2. The lower simulator required observed total population AND happiness for
+   `modeledConstraintsPass`, whereas the upper gross affordability calculation
+   depended only on relevant balances and available population. An incomplete
+   resource-bag snapshot could therefore create a contradiction.
+
+These are **code-supported failure modes**, not proven causes of the particular
+user screenshot because the sanitized screenshot did not show all live input
+fields or candidate metadata identities.
+
+Fixed in `1.8.1.7-qi-scenario-consistency`:
+- The advisor now passes an internal `definitionId` along with every
+  building candidate; the simulator selects exactly that definition and also
+  retains the ID through replacement scenarios. No entity/metadata IDs are
+  written to disk or exposed by the public diagnostic summary.
+- Financially covered builds with a currently missing population/euphoria
+  input are now listed as **`provisionalBuilds`**, not misclassified as
+  proved budget failures. A provisional build is not a safe game action.
+- The lower panel renders these incomplete-data scenarios separately and
+  no longer reports a categorical `no variants meet restrictions` when
+  the necessary evidence is missing.
+- `QISettlementSupport.ScenarioStatus()` returns counts of modeled,
+  provisional, blocked and replacement scenarios plus names of missing
+  economic resource fields, **without inventory values or player identifiers**.
+- Two additional regression tests reproduce ambiguous display names and
+  budget-covered construction with missing happiness/total population.
+  A third test ensures the diagnostic report is sanitized.
+- **72/72 isolated JS scenarios passed**, including existing economy and
+  Donor tests. Chrome acceptance and native Node CLI execution are pending.
+
+Acceptance after loading a fresh unpacked build: enter QI, check
+`QISettlementSupport.Status().build` equals
+`1.8.1.7-qi-scenario-consistency`, then inspect the lower economic section.
+If it still disagrees with upper coverage, run and share the sanitized
+`QISettlementSupport.ScenarioStatus()` report.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
