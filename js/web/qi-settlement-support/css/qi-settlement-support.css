@@ -14,3 +14,9 @@
 #qiSettlementSupport .qi-support-stage select { min-width:0; flex:1; color:inherit; background:var(--black-50, #333); border:1px solid #888; padding:4px; }
 #qiSettlementSupport .qi-support-steps { padding-left:22px; margin:8px 0; }
 #qiSettlementSupport .qi-support-steps li { margin:5px 0; }
+
+#qiSettlementSupport .qi-support-advice { margin:6px 0 12px; padding-left:22px; }
+#qiSettlementSupport .qi-support-advice li { margin-bottom:10px; border-bottom:1px solid rgba(128,128,128,.2); padding-bottom:6px; }
+#qiSettlementSupport .qi-support-advice strong { display:block; font-weight:700; }
+#qiSettlementSupport .qi-support-advice p { margin:3px 0; }
+#qiSettlementSupport .qi-support-advice small { display:block; opacity:.75; }
