@@ -28,6 +28,9 @@
             return {status:'insufficient-evidence',reason:'missing-rectangles-or-entities'};
         const usable=new Set(),occupied=new Set(),streets=new Set(),main=new Set();
         let ambiguous=0,invalidAreas=0,overlap=0;
+        // Impediments outside unlocked tiles and off-grid entities are not
+        // buildable player-owned structures. Those inside the plot still block.
+        let ignoredOutsideObstacles=0,ignoredOutsideOffGrid=0,skippedOutsideTiles=0;
         for(const a of areas){
             if(!validRect(a)){invalidAreas++;continue;}
             for(let dx=0;dx<a.width;dx++)
@@ -42,14 +45,27 @@
         for(const e of entities){
             const r=rectOfBuilding(e,definitions);
             if(!r){ambiguous++;continue;}
+            const type=definitions[e.cityentity_id]?.type;
+            let outside=0,inside=0;
             for(let dx=0;dx<r.width;dx++)
                 for(let dy=0;dy<r.length;dy++){
                     const tile=key(r.x+dx,r.y+dy);
+                    if(!usable.has(tile)){
+                        outside++;
+                        if(type==='impediment'||type==='off_grid') {
+                            skippedOutsideTiles++;
+                            continue;
+                        }
+                    }else inside++;
                     if(occupied.has(tile))overlap++;
                     occupied.add(tile);
                     if(r.isStreet)streets.add(tile);
                     if(r.isMain)main.add(tile);
                 }
+            if(outside>0&&inside===0){
+                if(type==='impediment')ignoredOutsideObstacles++;
+                if(type==='off_grid')ignoredOutsideOffGrid++;
+            }
         }
         if(ambiguous || overlap)
             return {status:'insufficient-evidence',
@@ -102,6 +118,7 @@
             status:'geometry-indexed',usable,occupied,free,streets,connectedRoads,
             areaCount:areas.length,totalTiles:usable.size,occupiedTiles:occupied.size,
             freeTiles:free.size,streetTiles:streets.size,
+            ignoredOutsideObstacles,ignoredOutsideOffGrid,skippedOutsideTiles,
             connectedStreetTiles:connectedRoads?.size ?? null,
             unknownObstacleRule:true
         };
@@ -161,6 +178,9 @@
             totalTiles:index.totalTiles,occupiedTiles:index.occupiedTiles,
             freeTiles:index.freeTiles,streetTiles:index.streetTiles,
             connectedStreetTiles:index.connectedStreetTiles,
+            ignoredOutsideObstacles:index.ignoredOutsideObstacles,
+            ignoredOutsideOffGrid:index.ignoredOutsideOffGrid,
+            skippedOutsideTiles:index.skippedOutsideTiles,
             roadTopologyKnown:index.connectedRoads!==null,
             unmodeledObstaclesPossible:true};
     }
