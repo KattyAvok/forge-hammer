@@ -184,15 +184,18 @@
                 return unknown('missing-footprint');
             dims.push({w,h});
         }
-        if(!Array.isArray(remove)||remove.length>1)
+        if(!Array.isArray(remove)||remove.length>2)
             return unknown('unverified-demolition-set');
         const free=new Set(index.free);
+        const alreadyFreed=new Set();
         for(const r of remove) {
             if(!validRect(r))return unknown('unknown-removed-footprint');
             for(let dx=0;dx<r.width;dx++)for(let dy=0;dy<r.length;dy++){
                 const tile=key(r.x+dx,r.y+dy);
                 if(!index.usable.has(tile)||!index.occupied.has(tile)||
                     index.streets.has(tile))return unknown('demolition-footprint-not-proven');
+                if(alreadyFreed.has(tile))return unknown('overlapping-demolition-footprints');
+                alreadyFreed.add(tile);
                 free.add(tile);
             }
         }
