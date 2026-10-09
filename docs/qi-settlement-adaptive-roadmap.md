@@ -174,6 +174,52 @@ free placement and road connections, production/rush time and donation-node
 economics. Never label a budget-covered building `can build now` until
 these constraints are verified.
 
+## 2026-10-09 two-world screenshot acceptance and Donor fallback
+
+The user provided screenshots of both the Fighter and Donor settlements
+running version `1.8.1.4-qi-affordability-gate`. The economic state is
+world-specific and the distinct worlds load separate inventories. The screenshots
+confirmed two issues:
+
+- In Fighter mode with plentiful QI money/supplies/Alloy, the module lists
+  economically feasible builds, but their strategic priority for combat remains
+  unvalidated without units/boosts, road access, and payback horizon.
+- In Donor mode with unconfigured manual reserves, the UI previously **refused
+  to render any construction scenarios**. This incorrectly conflated two
+  different questions: (a) can the observed inventory cover a construction price?
+  (b) can the player safely spend or donate that inventory after future costs?
+  The first can be estimated even when the second is unknown.
+
+**Fix implemented in dev version `1.8.1.5-qi-donor-gross-budget`:**
+
+- `rankBuilds()` now records `grossAffordable` and `grossShortages` separately
+  from reserve-aware `affordable` / `shortages`. Unknown explicit reserve is
+  still **null**, never silently coerced to 0.
+- Donor strategic scoring now considers both coin and supply production;
+  formerly the supplies focus could eliminate money-producing housing entirely.
+- The panel runs read-only scenarios without requiring complete reserve inputs.
+  It labels any gross-only result **`Předběžně kryto ze skladu`**, with an explicit
+  warning that this is **not** a safe spend/donation decision. Already-entered
+  partial reserves remain protected in the scenario calculation.
+- Unaffordable buildings are shown separately with the missing QI resources
+  even if no reserve has been configured. This makes blocked expensive
+  housing visible while other budget-covered construction candidates remain
+  visible for comparison.
+- `Status().reserveMode` reports `gross-only`, `manual-protected` or
+  `not-applicable` without exposing holdings.
+- The optional historical guide was moved below current financial scenarios
+  and reserve controls to prioritize adaptive decisions.
+- **69/69 isolated JavaScript tests pass**, including headless Donor-panel
+  rendering with synthetic stocks, a gross blocked Clapboard and a gross-covered
+  Bakery, and explicit distinction of partial/complete reserve settings.
+  This has not yet been run against the latest live Chrome UI or via actual Node CLI.
+
+**Remaining critical limitation:** safe donation cannot be derived merely from
+a cash balance or a manually supplied reserve. It requires a projected
+investment schedule, node-specific donation requirements, QI action constraints
+and available time. Current gross results are diagnostic planning information,
+not game action recommendations.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
