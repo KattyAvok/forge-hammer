@@ -10,6 +10,7 @@
     const BUILD = '1.8.1.7-qi-scenario-consistency';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
+    let contracts = globalThis.QISettlementContracts.create();
     const state = {
         running: false,
         difficulty: null,
@@ -67,6 +68,7 @@
     }
 
     function resetRun() {
+        contracts = globalThis.QISettlementContracts.create();
         state.stock = null;
         state.lastSource = null;
         resetMap();
@@ -189,6 +191,7 @@
             geometry:geom,
             placementCandidates:placements,
             metadata:{
+                contractEvidence:contracts.report(),
                 catalogCoverage:catalog,
                 production:production?{
                     buildingsExamined:production.buildingsExamined,
@@ -581,7 +584,15 @@
             resetRun();
         }
         state.difficulty = run.difficultyLevel;
+        contracts.observe('qi-run-state',response);
         render();
+    });
+    FH.proxy.addHandler('GuildRaidsMapService','getOverview',data=>{
+        contracts.observe('qi-map-overview',data?.responseData);
+    });
+    FH.proxy.addHandler('ArmyUnitManagementService','getArmyInfo',data=>{
+        if(FH.ActiveMap==='guild_raids')
+            contracts.observe('qi-unit-info',data?.responseData);
     });
     FH.proxy.addHandler('CityMapService','getCityMap',data=>{
         const response = data?.responseData;
