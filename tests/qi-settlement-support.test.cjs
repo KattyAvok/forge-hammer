@@ -8,6 +8,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const core = require('../js/web/qi-settlement-core/js/qi-settlement-core.js');
 const strategies = require('../js/web/qi-settlement-strategies/js/qi-settlement-strategies.js');
+const advisor = require('../js/web/qi-settlement-advisor/js/qi-settlement-advisor.js');
 const source = fs.readFileSync(path.join(__dirname,
     '../js/web/qi-settlement-support/js/qi-settlement-support.js'), 'utf8');
 
@@ -28,7 +29,7 @@ function setup() {
         HTML:{Box:()=>{throw Error('No UI in headless test')},AddCssFile:()=>{},
             CloseOpenBox:()=>{}}
     };
-    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,$:()=>({length:0})};
+    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,$:()=>({length:0})};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     return {
@@ -157,7 +158,7 @@ test('visible QI panel renders selected guide, observed stock and donor reserves
     store.set('QISettlementSupportSettingsV1_world1_123',
         JSON.stringify({profile:'donor',stage:'day4b',reserveMoney:'500',reserveSupplies:'100'}));
     const globals={FH,window:{location:{hostname:'world1.forgeofempires.com'}},
-        QISettlementCore:core,QISettlementStrategies:strategies,$};
+        QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,$};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     const send=(service,method,responseData)=>{
@@ -178,4 +179,32 @@ test('visible QI panel renders selected guide, observed stock and donor reserves
     assert.match(output,/QI mince/);
     assert.match(output,/Přebytek mincí/);
     assert.match(output,/500/);
+});
+
+test('automatic phase is independent of manually selected guide stage',()=>{
+    const t=setup();t.FH.ActiveMap='guild_raids';
+    t.FH.Main.CityEntities={
+        estate:{name:'Estate',type:'residential',components:{AllAge:{
+            staticResources:{resources:{resources:{guild_raids_population:100}}}}}},
+        ropery:{name:'Ropery',type:'goods',components:{AllAge:{
+            staticResources:{resources:{resources:{guild_raids_population:-100}}}}}}
+    };
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'fighter',stage:'day4b',reserveMoney:'',reserveSupplies:''}));
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:12345
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:50000,guild_raids_supplies:30000,
+        guild_raids_chrono_alloy:200,guild_raids_population:100,
+        guild_raids_happiness:300,guild_raids_total_population:200
+    }});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[{cityentity_id:'estate'},{cityentity_id:'ropery'}],
+        unlocked_areas:[{}]
+    });
+    const status=t.api.Status();
+    assert.equal(status.selectedStage,'day4b');
+    assert.equal(status.autoPhase.code,'rope');
+    assert.equal(status.autoPhase.confidence,'medium');
 });
