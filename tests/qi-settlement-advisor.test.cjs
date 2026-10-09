@@ -138,3 +138,15 @@ test('price schema probe handles empty metadata and does not invent prices',()=>
     assert.equal(result.definitionsWithQIPriceTokens,0);
     assert.equal(result.paths.every(x=>!x.priceContext),true);
 });
+
+test('unpriced building candidates are not presented as prioritized investments',()=>{
+    const bakery=def('Bakery','production',-50,0,{
+        guild_raids_supplies:400
+    });
+    const result=advisor.advise({
+        profile:'donor',stock,entities:[{cityentity_id:'bakery'}],
+        definitions:{bakery}
+    });
+    assert.equal(result.recommendations.some(x=>x.code==='build-candidate'),false);
+    assert.ok(result.blockers.some(x=>x.includes('prices are unverified')));
+});
