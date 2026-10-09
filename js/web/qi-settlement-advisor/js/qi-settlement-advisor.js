@@ -149,20 +149,32 @@
             const free=stock?.guild_raids_population;
             const populationOK=qty(free)?free+e.population>=0:null;
             // No hidden assumptions about roads, available space or unlocked age.
+            // Directional heuristics only. QA collection/capacity are tracked
+            // separately from per-cycle economic yields (different units).
+            const qaCollection=e.bonuses
+                .filter(b=>b.type.includes('action_points_collection'))
+                .reduce((n,b)=>n+b.value,0);
+            const qaCapacity=e.bonuses
+                .filter(b=>b.type.includes('action_points_capacity'))
+                .reduce((n,b)=>n+b.value,0);
             const quality =
                 focusName==='supplies' ? e.yieldPerCycle.guild_raids_supplies||0 :
                 focusName==='money' ? e.yieldPerCycle.guild_raids_money||0 :
                 focusName==='chrono_alloy' ? e.yieldPerCycle.guild_raids_chrono_alloy||0 :
-                profile==='donor' ? (e.yieldPerCycle.guild_raids_money||0)+(e.yieldPerCycle.guild_raids_supplies||0):
+                profile==='donor' ? (e.yieldPerCycle.guild_raids_money||0)+
+                    (e.yieldPerCycle.guild_raids_supplies||0) :
                 (e.yieldPerCycle.guild_raids_chrono_alloy||0)*20;
+            const strategicWeight=(profile==='donor'?qaCollection*5+qaCapacity/100 :
+                qaCollection*2+qaCapacity/200);
+
             const cultureNeeded=qty(population)&&qty(happiness)&&happiness<2*population;
-            const points= cultureNeeded&&e.euphoria>0 ? e.euphoria*20/area :
-                quality/area;
+            const points= cultureNeeded&&e.euphoria>0 ? (e.euphoria*20+strategicWeight)/area :
+                (quality+strategicWeight)/area;
             if(points<=0)continue;
             results.push({
                 kind:'build-candidate', alias:aliasId, name:String(def.name||id).slice(0,100),
                 area, populationDelta:e.population, euphoriaDelta:e.euphoria,
-                cycleYield:e.yieldPerCycle, cost:buildPrice,
+                cycleYield:e.yieldPerCycle, qaCollection, qaCapacity, cost:buildPrice,
                 affordable, populationOK, shortages,
                 verifiedAvailability:false, verifiedLayout:false,
                 score:points
