@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.1-qi-price-probe';
+    const BUILD = '1.8.1.2-qi-price-parser';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     const state = {
@@ -151,7 +151,7 @@
             panel.append(hint(decision.focus.reason));
             const coverage=globalThis.QISettlementAdvisor.catalogCoverage(FH.Main?.CityEntities);
             if(coverage) {
-                panel.append(row('QI definice / ověřené ceny',
+                panel.append(row('QI definice / nalezené ceny',
                     coverage.qiCatalogCount+' / '+coverage.priced));
                 if(!coverage.pricedRecommendationsPossible)
                     panel.append(hint('Ceny staveb zatím nejsou z dostupných definic potvrzené. Návrhy jsou jen kandidáti, nikoli ověřené pořadí investic.'));
@@ -366,6 +366,8 @@
         // no source objects, building ids or individual player data.
         PriceDiscovery: () => FH.ActiveMap === 'guild_raids' ?
             globalThis.QISettlementAdvisor.priceSchemaDiscovery(FH.Main?.CityEntities) : null,
+        CostSamples: () => FH.ActiveMap === 'guild_raids' ?
+            globalThis.QISettlementAdvisor.priceSamples(FH.Main?.CityEntities) : null,
         // Snapshot excludes internal world/player identifiers and arbitrary game responses.
         Status: () => ({
             build:BUILD,
