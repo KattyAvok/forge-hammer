@@ -9,6 +9,7 @@ const path = require('node:path');
 const core = require('../js/web/qi-settlement-core/js/qi-settlement-core.js');
 const strategies = require('../js/web/qi-settlement-strategies/js/qi-settlement-strategies.js');
 const advisor = require('../js/web/qi-settlement-advisor/js/qi-settlement-advisor.js');
+const simulator = require('../js/web/qi-settlement-simulator/js/qi-settlement-simulator.js');
 const source = fs.readFileSync(path.join(__dirname,
     '../js/web/qi-settlement-support/js/qi-settlement-support.js'), 'utf8');
 
@@ -29,7 +30,7 @@ function setup() {
         HTML:{Box:()=>{throw Error('No UI in headless test')},AddCssFile:()=>{},
             CloseOpenBox:()=>{}}
     };
-    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,$:()=>({length:0})};
+    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,$:()=>({length:0})};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     return {
@@ -158,7 +159,7 @@ test('visible QI panel renders selected guide, observed stock and donor reserves
     store.set('QISettlementSupportSettingsV1_world1_123',
         JSON.stringify({profile:'donor',stage:'day4b',reserveMoney:'500',reserveSupplies:'100'}));
     const globals={FH,window:{location:{hostname:'world1.forgeofempires.com'}},
-        QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,$};
+        QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,$};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     const send=(service,method,responseData)=>{
