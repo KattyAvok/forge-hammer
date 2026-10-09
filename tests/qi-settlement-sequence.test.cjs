@@ -167,3 +167,46 @@ test('QI bonus branches do not share state between alternative builds',()=>{
     assert.equal(first.totalCosts[M],36000);
     assert.equal(initial.totalCosts[M],undefined);
 });
+
+test('an active or uncollected production is excluded from demolition candidates',()=>{
+    for(const state of ['ProducingState','CompletedState']){
+        const result=seq.explore({stock:inventory,
+            entities:[{id:1,x:0,y:0,cityentity_id:'oldFactory',
+                state:{__class__:state,next_state_transition_in:30}}],
+            definitions:{printer,oldFactory},profile:'donor'});
+        assert.equal(result.skippedBusySaleCandidates,1);
+        assert.equal(result.inspectedOriginalBuildings,0);
+        assert.equal(result.plans.some(p=>p.steps.some(x=>x.type==='sell')),false);
+    }
+    const idle=seq.explore({stock:inventory,
+        entities:[{id:1,x:0,y:0,cityentity_id:'oldFactory',
+            state:{__class__:'IdleState'}}],
+        definitions:{printer,oldFactory},profile:'donor'});
+    assert.equal(idle.skippedBusySaleCandidates,0);
+    assert.equal(idle.inspectedOriginalBuildings,1);
+});
+test('integrated two-step search cannot place two houses in space for only one',()=>{
+    const defs={printer};
+    const plot=geometry.indexMap([{x:0,y:0,width:3,length:2}],[],defs);
+    const result=seq.explore({stock:inventory,entities:[],
+        definitions:defs,geometryIndex:plot,profile:'donor'});
+    assert.ok(result.plans.some(p=>p.steps.length===1));
+    assert.equal(result.plans.some(p=>p.steps.length===2),false);
+    assert.ok(result.plans.every(p=>p.executable===false));
+});
+test('integrated two-step search retains paired build only when plots coexist',()=>{
+    const defs={printer};
+    const plot=geometry.indexMap([{x:0,y:0,width:4,length:2}],[],defs);
+    const result=seq.explore({stock:inventory,entities:[],
+        definitions:defs,geometryIndex:plot,profile:'donor'});
+    assert.ok(result.plans.some(p=>p.steps.filter(x=>x.type==='build').length===2));
+    assert.ok(result.plans.some(p=>p.placementEvidence==='geometry-sequence-fit'));
+});
+test('unknown map geometry does not masquerade as verified placement',()=>{
+    const result=seq.explore({stock:inventory,entities:[],
+        definitions:{printer},profile:'donor',
+        geometryIndex:{status:'insufficient-evidence'}});
+    assert.ok(result.plans.length>0);
+    assert.ok(result.plans.every(p=>p.placementEvidence==='unknown'));
+    assert.ok(result.plans.every(p=>p.executable===false));
+});
