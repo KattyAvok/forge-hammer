@@ -108,6 +108,31 @@ sell/build/donate decisions.
 resource acceleration, remaining horizon and donation-node availability.
 Therefore numeric prices alone do NOT complete the full action-sequence optimizer.
 
+## 2026-10-09 construction price samples and scenario simulator
+
+The user supplied a live `QISettlementSupport.CostSamples()` object:
+- `schemaVersion:1` and `summary:{priced:16,ambiguous:0,unknown:0}`.
+- All 16 recognized building definitions produced a **single unambiguous metadata-candidate cost** at `components.AllAge.[component].cost.resources`.
+- Examples: Bakery 84,000 QI money / 100,000 QI supplies / 1,000 Chrono Alloy; Alchemist 50,400 / 60,000 / 200; Clapboard House 210,000 / 200,000 / 1,000; Ropery 45,000 / 22,500 / 200. Some starter buildings (e.g. Tannery) have only QI money listed in the metadata price object.
+- Metadata costs are not yet individually cross-checked against the game's building purchase UI. Building-unlock rules and placement are not verified.
+
+### Implemented: read-only economics for possible build and replacement orders
+- New pure module `js/web/qi-settlement-simulator/js/qi-settlement-simulator.js`, loaded after the advisor and before UI.
+- `quoteBuild` determines whether the given QI resource bag covers **every recorded positive cost** after protected reserves, and reports per-resource shortages, remaining balances, population used immediately during construction, and population/happiness after completion.
+- `quoteReplacement` models **sell → build → complete**, accounting for immediate loss of active population/happiness on demolition, then for construction population consumption. It rejects population-negative intermediate states, refuses to classify a sale as a viable scenario when it would remove recognized QI bonuses, and reports raw footprint-area differences.
+- `explore` combines known building definitions and the current mapped buildings into bounded preview choices. Duplicate names are collapsed and none are marked executable.
+- The panel now renders cost/stock/population quotations and possible sale–build replacements in a separate section `Ekonomické varianty z aktuálních cen` before the manual reference plan.
+- Donor preview requires manually entered reserves; the planned investments do **not** yet compute a complete node-specific donation buffer.
+- Development build `1.8.1.3-qi-scenario-preview`, manifest `1.8.1.3`; 63/63 isolated JS test scenarios PASS, including synthetic balances with the live-observed Bakery and Clapboard price fixtures.
+
+**Limits:** this is constrained budget/state simulation, *not* a global optimum. It has no verified free-rectangle map packing, road/availability check, real game unlocking, dynamic production time, rush currency, resource production schedule, donation node requirements, enemy composition, or remaining time before season end. A positive model result is NOT a valid instruction to buy or demolish; the UI labels such results as scenarios.
+
+### Next acceptance gate
+1. Reload fresh `1.8.1.3` dev extension in Chrome and enter QI.
+2. Compare 1–2 metadata prices with the actual construction menu; do not spend resources just for testing.
+3. Confirm the economic scenario section shows prices, projected leftover resources and interim population, with all actions remaining unconfirmed.
+4. Investigate unlocked buildings and free tiles/roads, then add projected production cycles and remaining-QI-horizon scoring. Only after these contracts are validated can optimization reliably rank whole sequences including donating and resource acceleration.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
