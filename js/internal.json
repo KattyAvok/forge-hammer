@@ -46,6 +46,7 @@
 	"qi-settlement-simulator",
 	"qi-settlement-geometry",
 	"qi-settlement-production",
+	"qi-settlement-contracts",
 	"qi-settlement-support",
 	"quests",
 	"gexstat",
