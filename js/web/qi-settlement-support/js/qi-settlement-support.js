@@ -175,7 +175,11 @@
                     b.grossAffordable===false || b.populationOK===false);
                 if(blocked.length)
                     panel.append(hint('Nedostupné už podle samotného skladu nebo populace: '+
-                        blocked.slice(0,3).map(b=>b.name).join(', ')+
+                        blocked.slice(0,3).map(b=>{
+                            const missing=Object.entries(b.grossShortage||{})
+                                .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v));
+                            return b.name+(missing.length?' (chybí '+missing.join(', ')+')':'');
+                        }).join(', ')+
                         '. Schodky podle aktuálních zásob jsou níže.'));
             }
             if(decision.recommendations.length===0)
