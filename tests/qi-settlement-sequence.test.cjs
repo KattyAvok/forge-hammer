@@ -147,3 +147,23 @@ test('no plan exports map coordinates, metadata ids, or player identifiers',()=>
     assert.equal(output.includes('523'),false);
     assert.equal(output.includes('oldFactory'),false);
 });
+
+test('QI bonus branches do not share state between alternative builds',()=>{
+    const aBonus=def('Gallows','culture',0,0,{[M]:36000},{},{
+        boosts:{boosts:[{type:'guild_raids_action_points_collection',value:50}]}
+    });
+    const initial={
+        stock:{...inventory},initial:{...inventory},protectedReserves:{},
+        floor:1.5,minFreePopulation:inventory[P],minEuphoriaFactor:1.5,
+        increments:{},qa:{},totalCosts:{},steps:[],usedOriginals:new Set()
+    };
+    const first=seq.applyBuild(initial,'gallows',aBonus,{},{});
+    const second=seq.applyBuild(initial,'gallows',aBonus,{},{});
+    assert.ok(first);
+    assert.ok(second);
+    assert.equal(initial.qa.guild_raids_action_points_collection,undefined);
+    assert.equal(first.qa.guild_raids_action_points_collection,50);
+    assert.equal(second.qa.guild_raids_action_points_collection,50);
+    assert.equal(first.totalCosts[M],36000);
+    assert.equal(initial.totalCosts[M],undefined);
+});
