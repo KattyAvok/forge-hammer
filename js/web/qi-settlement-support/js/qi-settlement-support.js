@@ -233,6 +233,7 @@
                 phase:phase?.code??null,
                 hoursRemainingFromRunTimestamp:hoursRemaining},
             scenario:current,
+            productionReadiness:complete?globalThis.QISettlementReadiness.summarize(state.map.entities):{status:'missing-or-stale-state'},
             nodeBudget:complete?nodeBudgetCoverage():{status:'missing-or-stale-state',safeDonation:null},
             geometry:geom,
             placementCandidates:placements,
@@ -276,6 +277,7 @@
             !paths.some(y=>y.event===x.event&&y.path===x.path))paths.push(x);
         return JSON.stringify({
             build:full.build,state:full.state,scenario:full.scenario,
+            productionReadiness:full.productionReadiness,
             nodeBudget:full.nodeBudget,
             geometry:full.geometry,
             placementCandidates:full.placementCandidates.slice(0,6),
@@ -682,6 +684,20 @@
         panel.append(row('Násobitel euforie',
             valid(observed.euphoriaFactor) ? observed.euphoriaFactor.toLocaleString('cs-CZ') + '×' : 'nezjištěno'));
 
+        panel.append(section('Výroba a nejbližší sběr'));
+        if(!state.mapStale && state.map?.entities) {
+            const summary=globalThis.QISettlementReadiness.summarize(state.map.entities);
+            panel.append(row('Právě běžící výroby',numberText(summary.active)));
+            if(summary.nearestTransitionMinutes!==null) {
+                panel.append(row('Nejbližší přechod produkce',
+                    numberText(summary.nearestTransitionMinutes)+' min'));
+                panel.append(row('Výroby do 3 hodin',numberText(summary.within3Hours)));
+                panel.append(hint('Jde o čas do změny stavu, nikoli o potvrzený výnos. Až po skutečném sběru se prostředky započítají do investičního rozpočtu.'));
+            } else
+                panel.append(hint('Z aktuální mapy nevyplývá čas nejbližšího sběru. Nedosazuji odhad za chybějící data.'));
+        } else {
+            panel.append(hint('Časový přehled čeká na čerstvou QI mapu.'));
+        }
         panel.append(section('Stav mapy a výstavby'));
         if (state.mapStale || !state.map) {
             panel.append(hint('Mapa není aktuálně potvrzená. Pro ověření staveb znovu vstup do QI osady. Údaje ze skladu zůstávají samostatné.'));
