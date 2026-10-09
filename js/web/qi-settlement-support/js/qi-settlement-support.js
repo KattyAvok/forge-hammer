@@ -319,6 +319,17 @@
                         p.plans[0],hours,calibration):null;
                 return {
                     status:p.status,planCount:p.plans.length,
+                    // Public building names and decision order only; no
+                    // player holdings, entity IDs or map coordinates.
+                    examplePlans:p.plans.slice(0,3).map(plan=>({
+                        operations:plan.steps.map(step=>({
+                            type:step.type,
+                            building:step.building
+                        })),
+                        placementEvidence:plan.placementEvidence,
+                        index:plan.heuristicScore,
+                        gameplayVerified:false
+                    })),
                     inspectedOriginalBuildings:p.inspectedOriginalBuildings,
                     doubleSalePairsInspected:p.doubleSalePairsInspected,
                     returnedDoubleSalePlans:p.plans.filter(plan=>
