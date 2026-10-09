@@ -139,6 +139,13 @@
             panel.append(hint('Důvod: '+decision.phase.reason));
             panel.append(row('Ekonomické omezení',decision.focus.name));
             panel.append(hint(decision.focus.reason));
+            const coverage=globalThis.QISettlementAdvisor.catalogCoverage(FH.Main?.CityEntities);
+            if(coverage) {
+                panel.append(row('QI definice / ověřené ceny',
+                    coverage.qiCatalogCount+' / '+coverage.priced));
+                if(!coverage.pricedRecommendationsPossible)
+                    panel.append(hint('Ceny staveb zatím nejsou z dostupných definic potvrzené. Návrhy jsou jen kandidáti, nikoli ověřené pořadí investic.'));
+            }
             const recList=$('<ol class="qi-support-advice"/>');
             for(const rec of decision.recommendations.slice(0,6)){
                 const item=$('<li/>')
@@ -350,7 +357,13 @@
             running:state.running, difficulty:state.difficulty,
             hasStock:!!state.stock, mapStale:state.mapStale,
             hasMap:!!state.map, selectedProfile:settings().profile,
-            selectedStage:settings().stage
+            selectedStage:settings().stage,
+            autoPhase:(!state.mapStale && state.map?.entities)?
+                globalThis.QISettlementAdvisor.inferPhase(
+                    globalThis.QISettlementAdvisor.features(state.map.entities,FH.Main?.CityEntities),
+                    state.map.summary?.unlockedAreaCount
+                ):null,
+            catalogCoverage:globalThis.QISettlementAdvisor.catalogCoverage(FH.Main?.CityEntities)
         })
     });
 })();
