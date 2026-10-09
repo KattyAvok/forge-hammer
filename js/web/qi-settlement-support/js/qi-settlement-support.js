@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.3-qi-scenario-preview';
+    const BUILD = '1.8.1.4-qi-affordability-gate';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     const state = {
