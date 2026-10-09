@@ -139,7 +139,15 @@
                 (phaseNames[decision.phase.code]||'neznámá')+
                 ' · jistota '+(decision.phase.confidence==='medium'?'střední':'nízká')));
             panel.append(hint('Důvod: '+decision.phase.reason));
-            panel.append(row('Ekonomické omezení',decision.focus.name));
+            const focusNames={
+                'unverified':'neověřeno',
+                'unknown':'nezjištěno',
+                'money':'QI mince',
+                'supplies':'QI zásoby',
+                'chrono_alloy':'Chrono Alloy'
+            };
+            panel.append(row('Ekonomické omezení',
+                focusNames[decision.focus.name] || decision.focus.name));
             panel.append(hint(decision.focus.reason));
             const coverage=globalThis.QISettlementAdvisor.catalogCoverage(FH.Main?.CityEntities);
             if(coverage) {
