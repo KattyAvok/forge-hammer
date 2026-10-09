@@ -63,16 +63,51 @@
             reason:'Nebyl nalezen jednoznačný znak pokročilejší fáze. Minulé demolice nelze zpětně určit.'};
     }
 
+    const NON_SPENDABLE = new Set([
+        'guild_raids_population','guild_raids_total_population',
+        'guild_raids_happiness','guild_raids_action_points'
+    ]);
+    function priceEvidence(definition) {
+        // Confirmed schema shape from live structural probe: QI prices occur
+        // under components.AllAge.[component].cost.resources. The exact
+        // component key was not reported, so reject ambiguous/multiple nodes.
+        const all=definition?.components?.AllAge;
+        const candidates=[];
+        function normalize(resources) {
+            if(!resources||typeof resources!=='object'||Array.isArray(resources))return null;
+            const out={};
+            for(const [key,value] of Object.entries(resources)) {
+                if(key==='guild_raids_population')continue; // treated by effects()
+                if(typeof value!=='number'||!Number.isFinite(value)||value<0)return null;
+                if(value===0)continue;
+                // An unknown positive cost must not be silently ignored.
+                if(!/^guild_raids_[a-z0-9_]+$/.test(key) || NON_SPENDABLE.has(key))
+                    return null;
+                out[key]=value;
+            }
+            return Object.keys(out).length?out:null;
+        }
+        const legacy=normalize(definition?.requirements?.cost?.resources);
+        if(legacy)candidates.push({cost:legacy,source:'legacy'});
+        if(all&&typeof all==='object'){
+            for(const [key,value] of Object.entries(all)) {
+                if(['production','staticResources','boosts','placement','lookup','upgrade'].includes(key))
+                    continue;
+                const direct=normalize(value?.cost?.resources);
+                if(direct)candidates.push({cost:direct,source:'components.AllAge.[component].cost.resources'});
+            }
+        }
+        if(candidates.length!==1) {
+            return {cost:null,status:candidates.length?'ambiguous':'unknown',
+                source:null, candidateCount:candidates.length};
+        }
+        return {cost:candidates[0].cost,status:'metadata-candidate',
+            source:candidates[0].source,candidateCount:1};
+    }
     function moneyCost(definition) {
-        // First-generation metadata contract. Later game metadata can use
-        // different structures; unknown is deliberately not zero.
-        const raw=definition?.requirements?.cost?.resources;
-        if(!raw || typeof raw !== 'object' || Array.isArray(raw))return null;
-        const result={};
-        for(const id of RESOURCE_IDS) if(qty(raw[id])) result[id]=raw[id];
-        // Missing coin/supply keys are not presumed free.
-        if(!qty(result.guild_raids_money)||!qty(result.guild_raids_supplies))return null;
-        return result;
+        // Historical exported name; now returns all recognized QI spendable
+        // costs, not only QI money and supplies.
+        return priceEvidence(definition).cost;
     }
     function effects(definition) {
         const all=definition?.components?.AllAge;
@@ -175,6 +210,7 @@
                 kind:'build-candidate', alias:aliasId, name:String(def.name||id).slice(0,100),
                 area, populationDelta:e.population, euphoriaDelta:e.euphoria,
                 cycleYield:e.yieldPerCycle, qaCollection, qaCapacity, cost:buildPrice,
+                priceStatus:priceEvidence(def).status,
                 affordable, populationOK, shortages,
                 verifiedAvailability:false, verifiedLayout:false,
                 score:points
@@ -396,7 +432,7 @@
         result.recommendations.sort((a,b)=>b.priority-a.priority);
         return result;
     }
-    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,rankBuilds,catalogCoverage,priceSchemaDiscovery,advise});
+    const api=Object.freeze({features,inferPhase,moneyCost,priceEvidence,effects,size,focus,rankBuilds,catalogCoverage,priceSchemaDiscovery,advise});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementAdvisor=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
