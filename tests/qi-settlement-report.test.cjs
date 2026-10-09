@@ -26,6 +26,7 @@ test('compact report exposes a parseable one-command JSON string',()=>{
    QISettlementSequence:moduleOf('sequence'),
    QISettlementTiming:moduleOf('timing'),
    QISettlementDonationBudget:moduleOf('donation-budget'),
+   QISettlementNodeBudget:moduleOf('node-budget'),
    console:{log:()=>{}},$:(name)=>({length:0})
  };
  context.globalThis=context;
