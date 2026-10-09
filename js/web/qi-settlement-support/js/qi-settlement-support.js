@@ -452,7 +452,7 @@
             panel.append(row('Geometrická mapa',layout.status==='geometry-indexed'?
                 'ověřena struktura':'nedostatečné údaje'));
             if(layout.status==='geometry-indexed') {
-                panel.append(row('Zjištěná volná pole',numberText(layout.freeTiles)));
+                panel.append(row('Geometricky neobsazená pole',numberText(layout.freeTiles)));
                 panel.append(hint('Volná pole nezaručují umístění konkrétní budovy. Cesty, překážky a stavební nabídku ověřujeme zvlášť.'));
             }
             const comparison = core.reconcileEconomy(state.map.derived, stock);
