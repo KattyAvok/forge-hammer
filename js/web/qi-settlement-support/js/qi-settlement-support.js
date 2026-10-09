@@ -149,6 +149,31 @@
         const boosts=globalThis.QISettlementProduction.qiBoostSummary(
             typeof Boosts!=='undefined'?Boosts:null
         );
+        const cycleEstimates=[];
+        if(complete&&meta) {
+            const entries=Object.entries(meta);
+            for(const [key,def] of entries) {
+                if(cycleEstimates.length>=8)break;
+                const price=globalThis.QISettlementAdvisor.priceEvidence(def);
+                if(price.status!=='metadata-candidate')continue;
+                const q=globalThis.QISettlementProduction.perResourcePayback(
+                    def,price.cost,state.stock,boosts.fields||{}
+                );
+                if(q.status!=='currency-specific-cycles')continue;
+                const shown=Object.keys(q.estimate.output||{}).filter(k=>
+                    k==='guild_raids_money'||k==='guild_raids_supplies'||
+                    k==='guild_raids_chrono_alloy');
+                if(!shown.length)continue;
+                cycleEstimates.push({
+                    building:String(def.name||'unknown').slice(0,90),
+                    outputPerCycle:Object.fromEntries(shown.map(x=>[x,q.estimate.output[x]])),
+                    optionTime:q.estimate.optionTime,
+                    optionTimeUnit:q.estimate.optionTimeUnit,
+                    paybackCyclesByResource:q.cycles,
+                    wholeInvestmentPaybackVerified:false
+                });
+            }
+        }
         const placements=[];
         if(complete) {
             const prefs=settings();
@@ -204,7 +229,8 @@
                     samples:production.samples.slice(0,8),
                     timeUnitsVerified:false
                 }:null,
-                qiBoosts:boosts
+                qiBoosts:boosts,
+                productionCycleEstimates:cycleEstimates
             },
             openGates:{
                 buildMenuUnlocks:'unverified',
@@ -241,6 +267,7 @@
                 examples:prod.samples.slice(0,3)
             }:null,
             qiBoosts:full.metadata.qiBoosts,
+            productionCycles:full.metadata.productionCycleEstimates.slice(0,6),
             evidence:{
                 status:contract.status,eventCounts:contract.eventCounts,
                 truncatedTraversals:contract.truncatedTraversals,paths
