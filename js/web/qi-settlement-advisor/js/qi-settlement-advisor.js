@@ -152,7 +152,7 @@
         }
         if(profile==='fighter' && alloy < 250)
             return {name:'chrono_alloy',reason:'Zásoba Chrono Alloy je nízká; může omezovat nábor a pokročilou výstavbu.'};
-        return {name:'unverified',reason:'Bez cen dalších staveb a uzlů nelze spolehlivě určit ekonomické omezení.'};
+        return {name:'unverified',reason:'Ceny jednotlivých staveb jsou dostupné; bez cíle příští investice, časového horizontu a ceny uzlu ale nelze určit hlavní ekonomické omezení.'};
     }
 
     // Candidate building ranking from QI-marked metadata. This does NOT prove
