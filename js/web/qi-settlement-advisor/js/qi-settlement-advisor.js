@@ -226,7 +226,10 @@
                 (quality+strategicWeight)/area;
             if(points<=0)continue;
             results.push({
-                kind:'build-candidate', alias:aliasId, name:String(def.name||id).slice(0,100),
+                kind:'build-candidate', alias:aliasId,
+                // Internal metadata key; use this exact definition for pricing.
+                // Display names are not unique across eras/building variants.
+                definitionId:id, name:String(def.name||id).slice(0,100),
                 area, populationDelta:e.population, euphoriaDelta:e.euphoria,
                 cycleYield:e.yieldPerCycle, qaCollection, qaCapacity, cost:buildPrice,
                 priceStatus:priceEvidence(def).status,
