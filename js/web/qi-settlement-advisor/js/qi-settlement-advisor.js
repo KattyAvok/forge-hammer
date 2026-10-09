@@ -120,6 +120,57 @@
         return {name:'unverified',reason:'Next building and node costs are needed to identify an economic bottleneck reliably'};
     }
 
+    // Candidate building ranking from QI-marked metadata. This does NOT prove
+    // that the building is available in the current QI construction menu.
+    function rankBuilds(definitions, profile, focusName, population, happiness, stock, reserves={}) {
+        if(!definitions || typeof definitions!=='object')return [];
+        const results=[], seen=new Set();
+        for(const [id,def] of Object.entries(definitions)){
+            if(!def || !['residential','production','culture'].includes(def.type))continue;
+            const aliasId=alias(def.name,id);
+            if(!aliasId || seen.has(id))continue;
+            const e=effects(def), area=size(def);
+            if(!e || !area)continue;
+            const raw=def.components?.AllAge?.staticResources?.resources?.resources||{};
+            const isQI=Object.keys(raw).some(k=>k.startsWith('guild_raids_')) ||
+                Object.keys(e.yieldPerCycle).some(k=>k.startsWith('guild_raids_'));
+            if(!isQI)continue;
+            seen.add(id);
+            const buildPrice=moneyCost(def);
+            const shortages={};
+            let affordable=buildPrice!==null;
+            if(affordable) {
+                for(const [key,needed] of Object.entries(buildPrice)){
+                    if(!qty(stock?.[key])) {affordable=null;continue;}
+                    const afterBuffer=Math.max(0,stock[key]-(reserves[key]||0));
+                    if(afterBuffer<needed){shortages[key]=needed-afterBuffer; affordable=false;}
+                }
+            }
+            const free=stock?.guild_raids_population;
+            const populationOK=qty(free)?free+e.population>=0:null;
+            // No hidden assumptions about roads, available space or unlocked age.
+            const quality =
+                focusName==='supplies' ? e.yieldPerCycle.guild_raids_supplies||0 :
+                focusName==='money' ? e.yieldPerCycle.guild_raids_money||0 :
+                focusName==='chrono_alloy' ? e.yieldPerCycle.guild_raids_chrono_alloy||0 :
+                profile==='donor' ? (e.yieldPerCycle.guild_raids_money||0)+(e.yieldPerCycle.guild_raids_supplies||0):
+                (e.yieldPerCycle.guild_raids_chrono_alloy||0)*20;
+            const cultureNeeded=qty(population)&&qty(happiness)&&happiness<2*population;
+            const points= cultureNeeded&&e.euphoria>0 ? e.euphoria*20/area :
+                quality/area;
+            if(points<=0)continue;
+            results.push({
+                kind:'build-candidate', alias:aliasId, name:String(def.name||id).slice(0,100),
+                area, populationDelta:e.population, euphoriaDelta:e.euphoria,
+                cycleYield:e.yieldPerCycle, cost:buildPrice,
+                affordable, populationOK, shortages,
+                verifiedAvailability:false, verifiedLayout:false,
+                score:points
+            });
+        }
+        return results.sort((a,b)=>b.score-a.score).slice(0,5);
+    }
+
     // Directional suggestions, not executable placements. The analyzer will
     // not recommend selling an occupied production/QA building as safe.
     function advise({profile='fighter',stock=null,entities=null,definitions=null,
@@ -206,13 +257,24 @@
                 }
             }
         }
+        const ranked=rankBuilds(definitions,profile,result.focus.name,
+            population,happy,observed,reserves);
+        for(const candidate of ranked.slice(0,3)){
+            const costText=candidate.cost?
+                'Cena z metadat: '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
+                'Stavební cena zatím nebyla v herních metadatech ověřena.';
+            add('build-candidate',35,'Kandidát výstavby: '+candidate.name,
+                'Návrh podle ekonomického přínosu na pole; '+costText,
+                'NEPOTVRZENÁ dostupnost v nabídce, konečné umístění a čas návratnosti.',
+                {candidate});
+        }
         if(result.focus.name==='unverified'){
             result.blockers.push('Cannot score investment payback without verified current costs and production horizon');
         }
         result.recommendations.sort((a,b)=>b.priority-a.priority);
         return result;
     }
-    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,advise});
+    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,rankBuilds,advise});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementAdvisor=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
