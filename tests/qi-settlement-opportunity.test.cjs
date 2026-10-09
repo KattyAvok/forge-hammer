@@ -74,11 +74,20 @@ test('observed end-of-run horizon only affects timing label not inventory',()=>{
  const x=opportunity.assess({entities:[production('bakery',10800)],
   definitions:defs,stock,horizonHours:1});
  assert.equal(x.opportunities[0].transitionBeforeQIEnd,false);
- assert.equal(x.opportunities[0].recommendedReview,'wait-for-transition-before-considering-sale');
+ assert.equal(x.opportunities[0].recommendedReview,'transition-beyond-observed-qi-end');
  assert.equal(x.grossResourceAvailabilityUnchanged,true);
 });
 test('unknown map remains safely unobserved',()=>{
  const x=opportunity.assess({entities:null,definitions:{},stock});
  assert.equal(x.status,'missing-map');
  assert.equal(x.actionable,false);
+});
+
+test('short wait before season end remains an uncollected protected production',()=>{
+ const defs={bakery:definition('Bakery',[opt(1000)])};
+ const x=opportunity.assess({entities:[production('bakery',600)],
+     definitions:defs,stock,horizonHours:2});
+ assert.equal(x.opportunities[0].transitionBeforeQIEnd,true);
+ assert.equal(x.opportunities[0].recommendedReview,'wait-for-transition-before-considering-sale');
+ assert.equal(x.opportunities[0].safeSaleNow,false);
 });
