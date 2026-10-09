@@ -51,6 +51,7 @@
 	"qi-settlement-timing",
 	"qi-settlement-donation-budget",
 	"qi-settlement-node-budget",
+	"qi-settlement-readiness",
 	"qi-settlement-support",
 	"quests",
 	"gexstat",
