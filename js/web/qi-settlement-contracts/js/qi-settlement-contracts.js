@@ -23,9 +23,54 @@
         const methods=new Map();
         const paths=new Map();
         let truncated=0;
+        let nodeBundles=null;
+        function summarizeNodeBundles(response) {
+            const nodes=response?.nodes;
+            if(!Array.isArray(nodes))return null;
+            const summary={nodesScanned:0,nodesWithBundles:0,bundles:0,
+                context:{possibleCost:0,reward:0,unclassified:0},keys:{},
+                nodeLimitReached:nodes.length>100};
+            for(const node of nodes.slice(0,100)) {
+                summary.nodesScanned++;
+                let foundForNode=false,visits=0;
+                const seen=new WeakSet();
+                function walk(value,depth,path) {
+                    if(!value||typeof value!=='object'||depth>8||
+                        seen.has(value)||++visits>3000)return;
+                    seen.add(value);
+                    if(Array.isArray(value)) {
+                        for(const item of value.slice(0,40))walk(item,depth+1,path);
+                        return;
+                    }
+                    for(const [key,child] of Object.entries(value).slice(0,100)) {
+                        const next=path.concat(key);
+                        if(key==='resources'&&child&&typeof child==='object') {
+                            const keys=Object.keys(child).filter(k=>resource.test(k)&&
+                                typeof child[k]==='number'&&Number.isFinite(child[k])&&
+                                child[k]>=0);
+                            if(keys.length) {
+                                summary.bundles++;
+                                foundForNode=true;
+                                const context=next.some(k=>/rewards?/i.test(k))?'reward':
+                                    next.some(k=>/cost|requirements?|donat|negotiat|payment/i.test(k))?
+                                        'possibleCost':'unclassified';
+                                summary.context[context]++;
+                                for(const k of keys)summary.keys[k]=(summary.keys[k]||0)+1;
+                            }
+                        }
+                        if(typeof child==='object')walk(child,depth+1,next);
+                    }
+                }
+                walk(node,0,[]);
+                if(foundForNode)summary.nodesWithBundles++;
+            }
+            return summary;
+        }
         function observe(name,response) {
             if(!['qi-map-overview','qi-run-state','qi-unit-info'].includes(name))return;
             methods.set(name,(methods.get(name)||0)+1);
+            if(name==='qi-map-overview')
+                nodeBundles=summarizeNodeBundles(response);
             if(!response||typeof response!=='object')return;
             const seen=new WeakSet();let visited=0;
             function walk(value,path,depth) {
@@ -60,6 +105,7 @@
                     const sep=key.indexOf('|');
                     return {event:key.slice(0,sep),path:key.slice(sep+1),occurrences};
                 }).sort((a,b)=>b.occurrences-a.occurrences).slice(0,35),
+                nodeResourceBundles:nodeBundles,
                 onlyNamesAndCounts:true
             };
         }
