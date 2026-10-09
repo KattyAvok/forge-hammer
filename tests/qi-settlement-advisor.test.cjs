@@ -101,7 +101,7 @@ test('donor recommendations never claim surpluses without manual reserves',()=>{
     const defs={home:def('Estate','residential',100,0)};
     const entities=[{cityentity_id:'home'}];
     const noReserve=advisor.advise({profile:'donor',stock,entities,definitions:defs});
-    assert.ok(noReserve.blockers.some(x=>x.includes('protected reserve')));
+    assert.ok(noReserve.blockers.some(x=>x.includes('chráněná rezerva')));
     const withReserve=advisor.advise({profile:'donor',stock,entities,
         definitions:defs,reserves:{
             guild_raids_money:95000,guild_raids_supplies:70000
@@ -148,5 +148,5 @@ test('unpriced building candidates are not presented as prioritized investments'
         definitions:{bakery}
     });
     assert.equal(result.recommendations.some(x=>x.code==='build-candidate'),false);
-    assert.ok(result.blockers.some(x=>x.includes('prices are unverified')));
+    assert.ok(result.blockers.some(x=>x.includes('stavební ceny QI nejsou ověřené')));
 });
