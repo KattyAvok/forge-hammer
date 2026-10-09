@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.8-qi-integrated-diagnostics';
+    const BUILD = '1.8.1.9-qi-geometry-evidence';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     let contracts = globalThis.QISettlementContracts.create();
