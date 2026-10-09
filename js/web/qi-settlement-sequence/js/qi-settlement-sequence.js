@@ -281,11 +281,13 @@
         // Keep both demolition intermediates valid and do not assume refunds,
         // production collections, or missing geometry are known.
         const selectedSellers=sellers.slice(0,12);
+        let inspectedSalePairs=0;
         for(let i=0;i<selectedSellers.length && first.length<maxSearch;i++){
             const a=selectedSellers[i];
             const afterFirst=applySell(starts,a.key,a.def,boosts);
             if(!afterFirst)continue;
             for(let j=i+1;j<selectedSellers.length && first.length<maxSearch;j++){
+                inspectedSalePairs++;
                 const b=selectedSellers[j];
                 const afterSecond=applySell(afterFirst,b.key,b.def,boosts);
                 if(!afterSecond)continue;
@@ -340,8 +342,7 @@
             profile,sequenceDepth:depth,
             candidateDefinitions:buildingOptions.length,
             inspectedOriginalBuildings:sellers.length,
-            doubleSalePairsInspected:Math.min(66,
-                sellers.length*(sellers.length-1)/2),
+            doubleSalePairsInspected:inspectedSalePairs,
             skippedBusySaleCandidates:busySaleBuildings,
             consideredVariants:first.length+all.length,
             plans:top,
