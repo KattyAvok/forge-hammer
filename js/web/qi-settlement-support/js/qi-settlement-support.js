@@ -127,6 +127,94 @@
         };
     }
 
+    function diagnosticReport() {
+        const phase=state.map?.entities && !state.mapStale ?
+            globalThis.QISettlementAdvisor.inferPhase(
+                globalThis.QISettlementAdvisor.features(state.map.entities,FH.Main?.CityEntities),
+                state.map.summary?.unlockedAreaCount) : null;
+        const meta=FH.Main?.CityEntities;
+        const complete=!!(state.running&&!state.mapStale&&state.map?.entities&&state.stock);
+        const empty={status:'missing-or-stale-state'};
+        const geom=complete?globalThis.QISettlementGeometry.summarize(state.map.layoutIndex):empty;
+        const catalog=globalThis.QISettlementAdvisor.catalogCoverage(meta);
+        const current=complete?scenarioStatus():empty;
+        const filter=definition=>{
+            const stat=definition.components?.AllAge?.staticResources?.resources?.resources||{};
+            return Object.keys(stat).some(key=>key.startsWith('guild_raids_'));
+        };
+        const production=globalThis.QISettlementProduction.inspect(meta,filter);
+        const boosts=globalThis.QISettlementProduction.qiBoostSummary(
+            typeof Boosts!=='undefined'?Boosts:null
+        );
+        const placements=[];
+        if(complete) {
+            const prefs=settings();
+            const rawReserves=prefs.profile==='donor'?readReserves(prefs):{};
+            const reserves={};
+            for(const [key,value] of Object.entries(rawReserves))
+                if(valid(value))reserves[key]=value;
+            const ranked=globalThis.QISettlementAdvisor.rankBuilds(meta,prefs.profile,
+                prefs.profile==='donor'?'supplies':'chrono_alloy',
+                state.stock.guild_raids_total_population,
+                state.stock.guild_raids_happiness,state.stock,reserves);
+            const ordered=ranked.filter(c=>c.grossAffordable===true)
+                .concat(ranked.filter(c=>c.grossAffordable===false));
+            for(const candidate of ordered.slice(0,12)) {
+                const def=meta?.[candidate.definitionId];
+                const fit=globalThis.QISettlementGeometry.probeFit(
+                    state.map.layoutIndex,def,5
+                );
+                placements.push({
+                    building:candidate.name,
+                    grossAffordable:candidate.grossAffordable,
+                    populationOK:candidate.populationOK,
+                    geometryStatus:fit.status,
+                    positionsObserved:fit.positionsFound,
+                    roadConnectivity:fit.roadConnectivity,
+                    verifiedPlacement:false
+                });
+            }
+        }
+        let hoursRemaining=null;
+        if(typeof state.seasonEnd==='number'&&
+            state.seasonEnd>1000000000&&state.seasonEnd<9999999999)
+            hoursRemaining=Math.max(0,Math.round((state.seasonEnd*1000-Date.now())/3600000));
+        return {
+            schemaVersion:1,build:BUILD,
+            state:{running:state.running,difficulty:state.difficulty,
+                mapFresh:complete,profile:settings().profile,
+                phase:phase?.code??null,
+                hoursRemainingFromRunTimestamp:hoursRemaining},
+            scenario:current,
+            geometry:geom,
+            placementCandidates:placements,
+            metadata:{
+                catalogCoverage:catalog,
+                production:production?{
+                    buildingsExamined:production.buildingsExamined,
+                    options:production.options,
+                    inputs:production.optionsWithQIInputs,
+                    outputs:production.optionsWithQIOutputs,
+                    potentialDuration:production.optionsWithPotentialDuration,
+                    timeFields:production.potentialTimePaths,
+                    samples:production.samples.slice(0,8),
+                    timeUnitsVerified:false
+                }:null,
+                qiBoosts:boosts
+            },
+            openGates:{
+                buildMenuUnlocks:'unverified',
+                roadLevels:'unverified',
+                geometricObstructions:'unverified',
+                nodeDonationAndQA:'unverified',
+                unitInventory:'unverified',
+                rushCosts:'unverified',
+                productionCycleTime:'unverified'
+            },
+            privacy:'Aggregate evidence and public building metadata only; no player ids, map coordinates or resource balances.'
+        };
+    }
+
     function render() {
         const root = $('#' + ID + 'Body');
         if (!root.length) return;
@@ -357,6 +445,13 @@
         if (state.mapStale || !state.map) {
             panel.append(hint('Mapa není aktuálně potvrzená. Pro ověření staveb znovu vstup do QI osady. Údaje ze skladu zůstávají samostatné.'));
         } else {
+            const layout=globalThis.QISettlementGeometry.summarize(state.map.layoutIndex);
+            panel.append(row('Geometrická mapa',layout.status==='geometry-indexed'?
+                'ověřena struktura':'nedostatečné údaje'));
+            if(layout.status==='geometry-indexed') {
+                panel.append(row('Zjištěná volná pole',numberText(layout.freeTiles)));
+                panel.append(hint('Volná pole nezaručují umístění konkrétní budovy. Cesty, překážky a stavební nabídku ověřujeme zvlášť.'));
+            }
             const comparison = core.reconcileEconomy(state.map.derived, stock);
             const audit = state.map.audit;
             const construction = audit?.construction?.count || 0;
@@ -494,6 +589,8 @@
         const entities = response?.entities;
         state.map = {
             entities:Array.isArray(entities)?entities:null, // memory only; never persisted or reported
+            layoutIndex:globalThis.QISettlementGeometry.indexMap(
+                response?.unlocked_areas,entities,FH.Main?.CityEntities),
             summary:core.normalizeMap(response),
             derived:core.deriveEconomy(entities,FH.Main?.CityEntities),
             audit:core.auditBuildingStates(entities,FH.Main?.CityEntities)
@@ -522,6 +619,12 @@
     globalThis.QISettlementSupport = Object.freeze({
         Show: show,
         ScenarioStatus: scenarioStatus,
+        ReportToConsole() {
+            const report=diagnosticReport();
+            console.log('QI Settlement Support - combined diagnostic '+BUILD);
+            console.log(JSON.stringify(report,null,2));
+            return 'Souhrnný report vypsán do konzole. Zkopíruj výstup JSON.';
+        },
         // Explicit opt-in metadata inspection; returns only aggregate safe paths,
         // no source objects, building ids or individual player data.
         PriceDiscovery: () => FH.ActiveMap === 'guild_raids' ?
