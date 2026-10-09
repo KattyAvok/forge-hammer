@@ -290,6 +290,8 @@ test('Donor without reserves distinguishes gross shortage from protected unknown
         entities:[{cityentity_id:'bakery'}],definitions:{clapboard,bakery},
         reserves:{guild_raids_money:null,guild_raids_supplies:null}});
     assert.equal(decision.recommendations.some(x=>x.code==='build-candidate'),false);
+    assert.equal(decision.grossBuilds.some(x=>x.name==='Bakery'),true);
+    assert.equal(decision.grossBuilds.some(x=>x.name==='Clapboard House'),false);
     assert.equal(decision.blockedBuilds.find(x=>x.name==='Clapboard House')
         .grossShortage.guild_raids_money,110000);
 });
