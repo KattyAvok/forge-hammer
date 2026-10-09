@@ -107,26 +107,37 @@
         maxCandidates=5,maxPairs=6}={}) {
         const advisor=root.QISettlementAdvisor;
         if(!stock||!Array.isArray(entities)||!definitions)
-            return {status:'missing-state',builds:[],replacements:[],blockers:['Chybí aktuální mapa nebo sklad.']};
+            return {status:'missing-state',builds:[],blockedBuilds:[],replacements:[],blockers:['Chybí aktuální mapa nebo sklad.']};
         const catalog=advisor.rankBuilds(definitions,profile,
             profile==='donor'?'supplies':'chrono_alloy',
             stock[total],stock[happy],stock,reserves);
-        const builds=[], replacements=[], seen=new Set();
-        for(const candidate of catalog.slice(0,maxCandidates)){
-            // Match only recognized QI metadata display names. Never use a
-            // potentially stale list of private map IDs in results.
+        const builds=[], blockedBuilds=[], replacements=[], seen=new Set();
+        // Consider all ranked candidates before capping; a high-score,
+        // unaffordable building must not displace an affordable one.
+        const replacementCandidates=[];
+        for(const candidate of catalog){
+            if(candidate.cost===null)continue;
             const choice=Object.values(definitions).find(def=>def?.name===candidate.name);
             if(!choice ||seen.has(candidate.name))continue;
             seen.add(candidate.name);
             const quoted=quoteBuild({stock,definition:choice,reserves});
-            if(quoted.priceStatus==='metadata-candidate')builds.push(quoted);
+            if(quoted.priceStatus!=='metadata-candidate')continue;
+            if(quoted.modeledConstraintsPass) {
+                if(builds.length<maxCandidates)builds.push(quoted);
+            } else if(blockedBuilds.length<maxCandidates) {
+                blockedBuilds.push(quoted);
+            }
+            // A replacement may release population, but it cannot generate
+            // missing construction resources in this no-refund model.
+            if(quoted.financiallyCovered===true)
+                replacementCandidates.push(quoted);
         }
         for(const existing of entities) {
             const removed=definitions[existing?.cityentity_id];
             if(!removed || !advisor.size(removed))continue;
             // Building under construction is not assumed to provide effects.
             if(/construct|building/i.test(String(existing?.state?.__class__||'')))continue;
-            for(const quote of builds) {
+            for(const quote of replacementCandidates) {
                 if(replacements.length>=maxPairs)break;
                 const added=Object.values(definitions).find(d=>d?.name===quote.name);
                 if(!added)continue;
@@ -142,7 +153,7 @@
         }
         return {
             status:'model-preview',
-            builds,replacements,
+            builds,blockedBuilds,replacements,
             blockers:[
                 'Kandidáti nezohledňují aktuální stavební nabídku, volné parcely ani cesty.',
                 'Časy výroby, časové okno QI a dopady darování nejsou oceněny.',
