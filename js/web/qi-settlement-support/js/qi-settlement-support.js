@@ -32,7 +32,7 @@
     }
 
     function defaults() {
-        return {profile:'fighter', reserveMoney:'', reserveSupplies:''};
+        return {profile:'fighter', stage:'day1a', reserveMoney:'', reserveSupplies:''};
     }
 
     function settings() {
@@ -41,6 +41,7 @@
             if (!stored || typeof stored !== 'object') return defaults();
             return {
                 profile: stored.profile === 'donor' ? 'donor' : 'fighter',
+                stage: globalThis.QISettlementStrategies.stages.includes(stored.stage) ? stored.stage : 'day1a',
                 reserveMoney: typeof stored.reserveMoney === 'string' && /^\d{0,14}$/.test(stored.reserveMoney)
                     ? stored.reserveMoney : '',
                 reserveSupplies: typeof stored.reserveSupplies === 'string' && /^\d{0,14}$/.test(stored.reserveSupplies)
@@ -91,6 +92,25 @@
         });
         profileRow.append(profile);
         panel.append(profileRow);
+
+        panel.append(section('Průvodce — ruční výběr etapy'));
+        const strategyData = globalThis.QISettlementStrategies;
+        const stagePicker = $('<select id="qi-support-stage"/>');
+        for (const code of strategyData.stages)
+            stagePicker.append($('<option/>').attr('value',code).text(strategyData.stageNames[code]));
+        stagePicker.val(preferences.stage);
+        stagePicker.on('change', () => {
+            save({...settings(),stage:String(stagePicker.val())});
+            render();
+        });
+        panel.append($('<label class="qi-support-stage"/>')
+            .text('Etapa: ').append(stagePicker));
+        const steps = $('<ol class="qi-support-steps"/>');
+        for (const instruction of strategyData.getSteps(preferences.profile, preferences.stage))
+            steps.append($('<li/>').text(instruction));
+        panel.append(steps);
+        panel.append(hint('Zdroj: hráčský návod ' + strategyData.version +
+            '. Stav kroků a ceny nejsou automaticky ověřené; etapu vybíráš ručně.'));
 
         if (!state.running) {
             panel.append(hint('Aktivní QI běh zatím nebyl potvrzen. Vstup do QI a znovu otevři panel.'));
@@ -260,7 +280,8 @@
         Status: () => ({
             running:state.running, difficulty:state.difficulty,
             hasStock:!!state.stock, mapStale:state.mapStale,
-            hasMap:!!state.map, selectedProfile:settings().profile
+            hasMap:!!state.map, selectedProfile:settings().profile,
+            selectedStage:settings().stage
         })
     });
 })();
