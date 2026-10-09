@@ -77,3 +77,33 @@ test('anonymous summary does not contain any map coordinates or metadata identif
     assert.equal(json.includes('582'),false);
     assert.equal(json.includes('named'),false);
 });
+
+test('geometry mismatch summarizes outside buildings without revealing coordinates',()=>{
+    const definitions={
+        main:def(2,2,'main_building'),
+        house:def(2,2,'residential'),
+        road:def(1,1,'street')
+    };
+    const areas=[{x:500,y:500,width:16,length:16},
+        {x:516,y:500,width:4,length:4}];
+    const buildings=[
+        {cityentity_id:'main',x:500,y:500},
+        {cityentity_id:'house',x:519,y:502},
+        {cityentity_id:'road',x:525,y:510},
+        {cityentity_id:'house',x:517,y:501}
+    ];
+    const index=geometry.indexMap(areas,buildings,definitions);
+    assert.equal(index.reason,'buildings-outside-unlocked-areas');
+    const summary=geometry.summarize(index);
+    assert.equal(summary.baseAreaCount,1);
+    assert.equal(summary.expansionAreaCount,1);
+    assert.equal(summary.outsideGroups.road,1);
+    assert.equal(summary.outsideGroups.main,0);
+    assert.equal(summary.outsideGroups.other,1);
+    assert.equal(summary.outsideGroups.partial,1);
+    assert.equal(summary.outsideGroups.entire,1);
+    const json=JSON.stringify(summary);
+    for(const privateCoord of ['525','510','517'])
+        assert.equal(json.includes(privateCoord),false);
+    assert.equal(geometry.probeFit(index,def(2,2)).status,'unknown');
+});
