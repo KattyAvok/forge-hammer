@@ -183,6 +183,29 @@
         return results.sort((a,b)=>b.score-a.score).slice(0,5);
     }
 
+    // Aggregate-only probe to decide whether metadata supports priced decisions.
+    // No player/world identifiers, building ids or map coordinates are included.
+    function catalogCoverage(definitions) {
+        if(!definitions || typeof definitions!=='object')return null;
+        let qiCatalogCount=0,priced=0,withYield=0,withFootprint=0;
+        const categories={residential:0,production:0,culture:0};
+        for(const [id,def] of Object.entries(definitions)){
+            if(!def || !Object.prototype.hasOwnProperty.call(categories,def.type))continue;
+            const e=effects(def);
+            if(!e || !alias(def.name,id))continue;
+            const raw=def.components?.AllAge?.staticResources?.resources?.resources||{};
+            if(!Object.keys(raw).some(k=>k.startsWith('guild_raids_')) &&
+                !Object.keys(e.yieldPerCycle).some(k=>k.startsWith('guild_raids_')))continue;
+            qiCatalogCount++;
+            categories[def.type]++;
+            if(moneyCost(def))priced++;
+            if(e.yieldKnown)withYield++;
+            if(size(def))withFootprint++;
+        }
+        return {qiCatalogCount,priced,withYield,withFootprint,categories,
+            pricedRecommendationsPossible:priced>0};
+    }
+
     // Directional suggestions, not executable placements. The analyzer will
     // not recommend selling an occupied production/QA building as safe.
     function advise({profile='fighter',stock=null,entities=null,definitions=null,
@@ -286,7 +309,7 @@
         result.recommendations.sort((a,b)=>b.priority-a.priority);
         return result;
     }
-    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,rankBuilds,advise});
+    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,rankBuilds,catalogCoverage,advise});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementAdvisor=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
