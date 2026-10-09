@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.10-qi-economy-geometry';
+    const BUILD = '1.8.1.11-qi-sequence-planner';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     let contracts = globalThis.QISettlementContracts.create();
