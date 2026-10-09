@@ -133,18 +133,16 @@
             // A replacement may release population, but it cannot generate
             // missing construction resources in this no-refund model.
             if(quoted.financiallyCovered===true)
-                replacementCandidates.push(quoted);
+                replacementCandidates.push({quote:quoted,definitionId:candidate.definitionId});
         }
         for(const existing of entities) {
             const removed=definitions[existing?.cityentity_id];
             if(!removed || !advisor.size(removed))continue;
             // Building under construction is not assumed to provide effects.
             if(/construct|building/i.test(String(existing?.state?.__class__||'')))continue;
-            for(const quote of replacementCandidates) {
+            for(const selected of replacementCandidates) {
                 if(replacements.length>=maxPairs)break;
-                const linked=catalog.find(c=>c.name===quote.name &&
-                    definitions[c.definitionId]);
-                const added=linked?definitions[linked.definitionId]:null;
+                const added=definitions[selected.definitionId];
                 if(!added)continue;
                 const replacement=quoteReplacement({stock,removed,added,reserves});
                 if(replacement.modeledConstraintsPass){
