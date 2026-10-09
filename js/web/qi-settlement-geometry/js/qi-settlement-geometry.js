@@ -166,6 +166,94 @@
             roadLevelVerified:false,unmodeledObstaclesPossible:true,actionable:false
         };
     }
+    // Verify that TWO proposed footprints can coexist after one demolition.
+    // The proof is purely geometrical and deliberately ignores shop unlock,
+    // build rotation, obstacle-clearing rules and road-level requirements.
+    // Search is bounded: if exhaustive search is not possible, return UNKNOWN.
+    function probeSequence(index,definitions,remove=[]) {
+        const unknown=(reason)=>({status:'unknown',reason,positionsTested:0,
+            roadLevelsVerified:false,actionable:false});
+        if(index?.status!=='geometry-indexed')return unknown('map-not-indexed');
+        if(!Array.isArray(definitions)||definitions.length<1||definitions.length>2)
+            return unknown('unsupported-depth');
+        const dims=[];
+        for(const def of definitions) {
+            const size=def?.components?.AllAge?.placement?.size;
+            const w=size?.x ?? def?.width,h=size?.y ?? def?.length;
+            if(![w,h].every(integer)||w<1||h<1||w*h>cap)
+                return unknown('missing-footprint');
+            dims.push({w,h});
+        }
+        if(!Array.isArray(remove)||remove.length>1)
+            return unknown('unverified-demolition-set');
+        const free=new Set(index.free);
+        for(const r of remove) {
+            if(!validRect(r))return unknown('unknown-removed-footprint');
+            for(let dx=0;dx<r.width;dx++)for(let dy=0;dy<r.length;dy++){
+                const tile=key(r.x+dx,r.y+dy);
+                if(!index.usable.has(tile)||!index.occupied.has(tile)||
+                    index.streets.has(tile))return unknown('demolition-footprint-not-proven');
+                free.add(tile);
+            }
+        }
+        // All candidate top-left anchors are drawn from known unoccupied tiles.
+        // The bounding rule is exact for axis-aligned, unrotated buildings.
+        const anchors=[...free].map(t=>t.split(',').map(Number));
+        let checks=0,placements=0,roadCandidate=false;
+        const roadContact=(x,y,w,h)=>{
+            if(index.connectedRoads===null)return false;
+            for(let dx=0;dx<w;dx++)
+                if(index.connectedRoads.has(key(x+dx,y-1))||
+                    index.connectedRoads.has(key(x+dx,y+h)))return true;
+            for(let dy=0;dy<h;dy++)
+                if(index.connectedRoads.has(key(x-1,y+dy))||
+                    index.connectedRoads.has(key(x+w,y+dy)))return true;
+            return false;
+        };
+        const fits=(x,y,w,h,available)=>{
+            for(let dx=0;dx<w;dx++)for(let dy=0;dy<h;dy++){
+                const cell=key(x+dx,y+dy);
+                if(!index.usable.has(cell)||!available.has(cell))return false;
+            }
+            return true;
+        };
+        const first=dims[0],second=dims[1];
+        const searchLimit=50000;
+        for(const [x,y] of anchors){
+            if(++checks>searchLimit)return unknown('search-limit-exceeded');
+            if(!fits(x,y,first.w,first.h,free))continue;
+            if(!second) {
+                placements++;
+                roadCandidate ||= roadContact(x,y,first.w,first.h);
+                break;
+            }
+            const rest=new Set(free);
+            for(let dx=0;dx<first.w;dx++)for(let dy=0;dy<first.h;dy++)
+                rest.delete(key(x+dx,y+dy));
+            for(const [sx,sy] of anchors) {
+                if(++checks>searchLimit)return unknown('search-limit-exceeded');
+                if(!rest.has(key(sx,sy)))continue;
+                if(!fits(sx,sy,second.w,second.h,rest))continue;
+                placements++;
+                roadCandidate ||= roadContact(x,y,first.w,first.h) &&
+                    roadContact(sx,sy,second.w,second.h);
+                break;
+            }
+            if(placements)break;
+        }
+        return {
+            status:placements?'geometry-sequence-fit':'geometry-sequence-no-fit',
+            positionsTested:checks,
+            buildings:definitions.length,
+            candidateConnectedRoadAdjacency:roadCandidate,
+            roadTopologyKnown:index.connectedRoads!==null,
+            roadLevelsVerified:false,
+            rotatedBuildingsConsidered:false,
+            futureShopAvailabilityVerified:false,
+            actionable:false
+        };
+    }
+
     function summarize(index) {
         if(index?.status!=='geometry-indexed') {
             const result={status:index?.status||'unknown',reason:index?.reason||'unknown'};
@@ -186,7 +274,7 @@
             roadTopologyKnown:index.connectedRoads!==null,
             unmodeledObstaclesPossible:true};
     }
-    const api=Object.freeze({indexMap,probeFit,summarize,rectOfBuilding});
+    const api=Object.freeze({indexMap,probeFit,probeSequence,summarize,rectOfBuilding});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementGeometry=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
