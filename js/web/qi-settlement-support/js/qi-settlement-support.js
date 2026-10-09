@@ -223,7 +223,11 @@
         const full=diagnosticReport();
         const prod=full.metadata.production;
         const contract=full.metadata.contractEvidence;
-        const paths=(contract.structuralPaths||[]).slice(0,12);
+        const allPaths=contract.structuralPaths||[];
+        const relevant=/requirements|resources|cost|donat|units|actionPoints|time|production|state/;
+        const paths=allPaths.filter(x=>relevant.test(x.path)).slice(0,10);
+        for(const x of allPaths.slice(0,5))if(paths.length<14&&
+            !paths.some(y=>y.event===x.event&&y.path===x.path))paths.push(x);
         return JSON.stringify({
             build:full.build,state:full.state,scenario:full.scenario,
             geometry:full.geometry,
