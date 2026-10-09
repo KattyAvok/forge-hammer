@@ -77,6 +77,8 @@
             for(const e of entities) {
                 const r=rectOfBuilding(e,definitions);
                 if(!r)continue;
+                const type=definitions[e.cityentity_id]?.type;
+                if(type==='impediment'||type==='off_grid')continue;
                 let included=0;
                 for(let dx=0;dx<r.width;dx++)
                     for(let dy=0;dy<r.length;dy++)
