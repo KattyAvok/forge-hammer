@@ -138,7 +138,7 @@
             seen.add(id);
             const buildPrice=moneyCost(def);
             const shortages={};
-            let affordable=buildPrice!==null;
+            let affordable=buildPrice!==null?true:null;
             if(affordable) {
                 for(const [key,needed] of Object.entries(buildPrice)){
                     if(!qty(stock?.[key])) {affordable=null;continue;}
