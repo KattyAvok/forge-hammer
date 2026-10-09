@@ -244,6 +244,18 @@
                     entry.append($('<small/>').text('Nedostatečná populace – tento scénář neprovádět.'));
                 scenarioList.append(entry);
             }
+            if(scenarios.provisionalBuilds?.length) {
+                panel.append($('<h4/>').text('Předběžné rozpočtové varianty – chybí úplné údaje'));
+                const previews=$('<ul class="qi-support-blocked"/>');
+                for(const q of scenarios.provisionalBuilds.slice(0,5)) {
+                    const missing=q.missing.includes('currentPopulationHappiness') ?
+                        'neúplný údaj o celkové populaci nebo euforii' :
+                        'neúplná data pro celkové posouzení';
+                    previews.append($('<li/>').text(q.name+' – cena kryta, '+missing+
+                        '. Proveditelnost dosud neověřena.'));
+                }
+                panel.append(previews);
+            }
             for(const q of scenarios.replacements.slice(0,3)){
                 const entry=$('<li/>')
                     .append($('<strong/>').text('Vyměnit: '+q.remove+' → '+q.add))
@@ -277,8 +289,13 @@
                 panel.append(blocked);
                 panel.append(hint('Tyto stavby nejsou návrhy k okamžité výstavbě.'));
             }
-            if(!scenarios.builds.length && !scenarios.replacements.length)
-                panel.append(hint('Žádná prověřovaná varianta nesplňuje současná finanční a populační omezení.'));
+            if(!scenarios.builds.length && !scenarios.replacements.length &&
+                !(scenarios.provisionalBuilds?.length)) {
+                const reason=scenarios.blockedBuilds?.length ?
+                    'Z hodnocených variant zatím žádná neprošla rozpočtovými a populačními omezeními; nedostupné možnosti jsou vypsány výše.' :
+                    'Simulátor zatím nemá úplný vstup pro tyto varianty. Neznamená to, že ve hře nelze nic postavit.';
+                panel.append(hint(reason));
+            }
             panel.append(hint('POZOR: Jde o rozpočtovou simulaci, ne optimalizované pořadí akcí. Nabídka, prostor, cesty, délka výstavby a zbývající QI čas nejsou zatím ověřené.'));
         }
 
