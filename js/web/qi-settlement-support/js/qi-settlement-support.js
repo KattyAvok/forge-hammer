@@ -167,14 +167,17 @@
             panel.append(recList);
             if(decision.blockedBuilds?.length) {
                 const blocked=decision.blockedBuilds.filter(b=>
-                    b.financialStatus===false || b.populationOK===false);
+                    b.grossAffordable===false || b.populationOK===false);
                 if(blocked.length)
-                    panel.append(hint('Nedostupné kvůli zdrojům či populaci: '+
+                    panel.append(hint('Nedostupné už podle samotného skladu nebo populace: '+
                         blocked.slice(0,3).map(b=>b.name).join(', ')+
-                        '. Podrobné schodky jsou níže.'));
+                        '. Schodky podle aktuálních zásob jsou níže.'));
             }
             if(decision.recommendations.length===0)
-                panel.append(hint('Žádné bezpečně odvoditelné doporučení. Chybí ověřené ceny nebo omezení.'));
+                panel.append(hint(preferences.profile==='donor' &&
+                    (preferences.reserveMoney==='' || preferences.reserveSupplies==='') ?
+                    'Bez úplných rezerv nelze potvrdit bezpečnou investici ani darování. Orientační rozpočet ze skladu najdeš níže.' :
+                    'Z dostupných dat zatím nevychází bezpečně proveditelné doporučení.'));
             if(decision.blockers.length)
                 panel.append(hint('Co brání přesné optimalizaci: '+decision.blockers.join('; ')));
             panel.append(hint('Kandidáti nejsou příkazy k demolici ani potvrzeně dostupné stavby.'));
@@ -183,14 +186,19 @@
         panel.append(section('Ekonomické varianty z aktuálních cen'));
         if(!decision) {
             panel.append(hint('Scénáře nelze počítat bez aktuální mapy, zásob a aktivního QI běhu.'));
-        } else if (preferences.profile==='donor' &&
-            (preferences.reserveMoney==='' || preferences.reserveSupplies==='')) {
-            panel.append(hint('Donor: k porovnání investic nejprve stanov chráněnou rezervu mincí i zásob níže.'));
         } else {
             const protectedAmounts=readReserves(preferences);
             const reserves={};
-            for(const [key,value] of Object.entries(protectedAmounts))
-                if(valid(value))reserves[key]=value;
+            const reserveComplete=valid(protectedAmounts.guild_raids_money) &&
+                valid(protectedAmounts.guild_raids_supplies);
+            if(preferences.profile==='donor') {
+                for(const [key,value] of Object.entries(protectedAmounts))
+                    if(valid(value))reserves[key]=value;
+                if(!reserveComplete)
+                    panel.append(hint('Donor: orientační rozpočet ze současných zásob. Nezadané rezervy se NEPOVAŽUJÍ za nulové ani za schválení výstavby či darování. Zadané dílčí rezervy zůstávají chráněné.'));
+                else
+                    panel.append(hint('Rozpočtové varianty po odečtení ručně zadaných rezerv. Rezerva na další etapy a darovací uzly ještě není automaticky vypočítaná.'));
+            }
             const scenarios=globalThis.QISettlementSimulator.explore({
                 stock:state.stock,entities:state.map.entities,
                 definitions:FH.Main?.CityEntities,
@@ -198,9 +206,11 @@
             });
             const scenarioList=$('<ol class="qi-support-scenarios"/>');
             for(const q of scenarios.builds.slice(0,4)){
-                const title='Finančně dostupná varianta: '+q.name;
+                const title=preferences.profile==='donor' && !reserveComplete ?
+                    'Předběžně kryto ze skladu: '+q.name :
+                    'Finančně dostupná varianta: '+q.name;
                 const result=q.financiallyCovered===null?'Cena nebo zásoba neznámá':
-                    q.financiallyCovered?'Finančně kryto':'Nedostatek zdrojů';
+                    q.financiallyCovered?'Kryto v tomto modelu':'Nedostatek zdrojů';
                 const entry=$('<li/>').append($('<strong/>').text(title+' — '+result));
                 const costs=Object.entries(q.cost||{})
                     .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v)).join(', ');
@@ -240,6 +250,9 @@
                 scenarioList.append(entry);
             }
             panel.append(scenarioList);
+            if(preferences.profile==='donor' && !reserveComplete &&
+                scenarios.builds.length)
+                panel.append(hint('Předběžně krytá stavba stále může spotřebovat zdroje potřebné později. Nejde o doporučení ji okamžitě postavit.'));
             if(scenarios.blockedBuilds?.length) {
                 panel.append($('<h4/>').text('Finančně nebo populačně nedostupné stavby'));
                 const blocked=$('<ul class="qi-support-blocked"/>');
