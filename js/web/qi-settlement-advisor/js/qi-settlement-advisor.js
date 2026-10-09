@@ -176,9 +176,16 @@
             let affordable=buildPrice!==null?true:null;
             if(affordable) {
                 for(const [key,needed] of Object.entries(buildPrice)){
-                    if(!qty(stock?.[key])) {affordable=null;continue;}
-                    const afterBuffer=Math.max(0,stock[key]-(reserves[key]||0));
-                    if(afterBuffer<needed){shortages[key]=needed-afterBuffer; affordable=false;}
+                    const held=stock?.[key];
+                    const reserved=reserves?.[key] ?? 0;
+                    if(!qty(held)||!qty(reserved)){
+                        affordable=null;continue;
+                    }
+                    const afterBuffer=Math.max(0,held-reserved);
+                    if(afterBuffer<needed){
+                        shortages[key]=needed-afterBuffer;
+                        affordable=false;
+                    }
                 }
             }
             const free=stock?.guild_raids_population;
@@ -216,7 +223,9 @@
                 score:points
             });
         }
-        return results.sort((a,b)=>b.score-a.score).slice(0,5);
+        // Do not truncate before affordability filtering: a high-scoring but
+        // unaffordable building must not hide a lower-scoring valid candidate.
+        return results.sort((a,b)=>b.score-a.score).slice(0,64);
     }
 
     // Aggregate-only probe to decide whether metadata supports priced decisions.
@@ -360,7 +369,7 @@
         const phase=inferPhase(f,unlockedAreaCount);
         const observed=stock||{};
         const result={phase, focus:focus(profile,observed,planCost),
-            recommendations:[], blockers:[], counts:f?.counts||{}, 
+            recommendations:[], blockedBuilds:[], blockers:[], counts:f?.counts||{}, 
             dataQuality:{hasMap:!!f,missingDefinitions:f?.unknown??null,
                 hasStock:RESOURCE_IDS.every(x=>qty(observed[x]))}};
         const add=(code,priority,title,why,limitations,extra={})=>
@@ -440,18 +449,33 @@
         }
         const ranked=rankBuilds(definitions,profile,result.focus.name,
             population,happy,observed,reserves);
-        // Economic rankings without confirmed price cannot be used to choose
-        // sell/build sequences; suppress these misleading "recommendations".
-        const priced=ranked.filter(candidate=>candidate.cost !== null);
+        const priced=ranked.filter(candidate=>candidate.cost!==null);
+        // Price known does NOT imply enough QI money, supplies, Alloy, Rope,
+        // protected Donor reserve or population. Never rank blocked builds
+        // as the next recommended action.
+        const eligible=priced.filter(candidate=>
+            candidate.affordable===true && candidate.populationOK===true);
+        result.blockedBuilds=priced
+            .filter(candidate=>candidate.affordable!==true ||
+                candidate.populationOK!==true)
+            .slice(0,6)
+            .map(candidate=>({
+                name:candidate.name,
+                shortage:{...candidate.shortages},
+                financialStatus:candidate.affordable,
+                populationOK:candidate.populationOK
+            }));
         if(ranked.length && priced.length===0)
             result.blockers.push('Návrhy konkrétních staveb byly potlačeny: aktuální stavební ceny QI nejsou ověřené.');
-        for(const candidate of priced.slice(0,3)){
+        else if(priced.length && eligible.length===0)
+            result.blockers.push('Žádná kandidátní stavba nesplňuje současně zdrojová, rezervní a populační omezení.');
+        for(const candidate of eligible.slice(0,3)){
             const costText=candidate.cost?
                 'Cena z metadat (zatím neověřena v nabídce): '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
                 'Stavební cena zatím nebyla v herních metadatech ověřena.';
             add('build-candidate',35,'Kandidát výstavby: '+candidate.name,
                 'Návrh podle ekonomického přínosu na pole; '+costText,
-                'NEPOTVRZENÁ dostupnost v nabídce, konečné umístění a čas návratnosti.',
+                'Finančně krytý kandidát, ale NEPOTVRZENÁ dostupnost v nabídce, konečné umístění a čas návratnosti.',
                 {candidate});
         }
         if(result.focus.name==='unverified'){
