@@ -609,6 +609,11 @@ test('live-style synthetic QI city accepts one concise consistency report withou
     const shared=JSON.parse(t.api.ShareReport());
     assert.equal(shared.consistency.status,'internally-consistent');
     assert.equal(shared.consistency.readyForManualComparison,true);
+    assert.ok(shared.sequencePreview.examplePlans.length>0);
+    assert.ok(shared.sequencePreview.examplePlans.some(plan=>
+        plan.operations.some(op=>op.building==='Bakery')));
+    assert.ok(shared.sequencePreview.examplePlans.every(plan=>
+        plan.gameplayVerified===false));
     assert.equal(shared.consistency.actualGameplayActionsVerified,false);
     assert.equal(shared.nodeBudget.safeDonation,null);
     const contents=JSON.stringify(shared);
