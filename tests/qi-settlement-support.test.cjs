@@ -20,6 +20,7 @@ function setup() {
             setItem: (key,value) => store.set(key,value)
         },
         proxy:{addHandler:(service,method,handler)=>{
+            if (typeof method === 'function') {handler = method;method = 'all';}
             if (!handlers[service]) handlers[service]={};
             (handlers[service][method] ||= []).push(handler);
         }},
