@@ -270,7 +270,9 @@
             productionCycles:full.metadata.productionCycleEstimates.slice(0,6),
             evidence:{
                 status:contract.status,eventCounts:contract.eventCounts,
-                truncatedTraversals:contract.truncatedTraversals,paths
+                truncatedTraversals:contract.truncatedTraversals,
+                nodeResourceBundles:contract.nodeResourceBundles,
+                paths
             },
             openGates:full.openGates
         },null,2);
