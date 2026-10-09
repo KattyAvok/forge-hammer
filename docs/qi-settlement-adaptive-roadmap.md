@@ -133,6 +133,47 @@ The user supplied a live `QISettlementSupport.CostSamples()` object:
 3. Confirm the economic scenario section shows prices, projected leftover resources and interim population, with all actions remaining unconfirmed.
 4. Investigate unlocked buildings and free tiles/roads, then add projected production cycles and remaining-QI-horizon scoring. Only after these contracts are validated can optimization reliably rank whole sequences including donating and resource acceleration.
 
+## 2026-10-09 affordability-first recommendations (bug fix)
+
+Live screenshot from a difficulty-IX, Donor-mode QI city showed a disabled
+`Clapboard House` entry in the building menu, while the advisory panel listed
+it as its highest-ranked building candidate, with listed construction costs
+of 210,000 QI money, 200,000 QI supplies and 1,000 Chrono Alloy. The user
+confirmed it could not be afforded. Root cause in code: candidate ordering used
+the strategic `score` while the advisor filtered only `cost !== null`,
+ignoring its already calculated `affordable` and `populationOK` fields.
+A second truncation to the top five candidates could mask affordable
+lower-scoring alternatives. The economic simulator also displayed budget-
+blocked candidates in its main list instead of a separate rejected group.
+
+Fix in `1.8.1.4-qi-affordability-gate`:
+- The advisor recommends priced build candidates **only if affordable === true
+  AND populationOK === true**. Without verified placement, roads and unlock,
+  this still does not constitute a fully executable recommendation.
+- Budget or population failures are captured separately in
+  `blockedBuilds`, with deficits for each recorded resource.
+- Candidate ranking occurs before affordability filtering, without silently
+  dropping lower-scoring cheaper choices via early top-five truncation.
+- The simulator lists economically modeled builds separately from
+  `blockedBuilds`. Replacement consideration may use a candidate that is
+  budget-covered but population-blocked if removing an existing building first
+  would clear that constraint; no budget shortfall is assumed to be funded by
+  demolition, and no game action is performed.
+- A missing explicitly specified Donor reserve is **unknown**, not zero.
+- The panel now separates `Finančně nebo populačně nedostupné stavby`
+  from possible build/replacement scenarios. Clapboard should appear only
+  in the blocked section with its missing resources when the current
+  holdings are insufficient.
+- Three new regression scenarios cover donor affordability, unknown reserves,
+  and higher-score blocked Clapboard versus affordable Bakery.
+- **66/66 isolated JavaScript scenarios pass** on branch-fetched source;
+  no new browser acceptance or real Node.js test CLI has been run.
+
+**Still open:** actual build-menu availability/technology locks, contiguous
+free placement and road connections, production/rush time and donation-node
+economics. Never label a budget-covered building `can build now` until
+these constraints are verified.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
