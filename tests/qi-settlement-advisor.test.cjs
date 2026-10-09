@@ -261,3 +261,35 @@ test('unknown Donor reserve does not become zero for an otherwise affordable bui
         reserves:{guild_raids_money:null,guild_raids_supplies:null}});
     assert.equal(advice.recommendations.some(x=>x.code==='build-candidate'),false);
 });
+
+test('Donor without reserves distinguishes gross shortage from protected unknowns',()=>{
+    const clapboard=def('Clapboard House','residential',160,0,{
+        guild_raids_money:1200
+    });
+    clapboard.components.AllAge.constructionCost={cost:{resources:{
+        guild_raids_money:210000,guild_raids_supplies:200000,guild_raids_chrono_alloy:1000
+    }}};
+    const bakery=def('Bakery','production',-50,0,{
+        guild_raids_supplies:300
+    });
+    bakery.components.AllAge.constructionCost={cost:{resources:{
+        guild_raids_money:84000,guild_raids_supplies:100000,guild_raids_chrono_alloy:1000
+    }}};
+    const synthetic={...stock,guild_raids_money:100000,guild_raids_supplies:310000,
+        guild_raids_chrono_alloy:1200};
+    const ranked=advisor.rankBuilds({clapboard,bakery},'donor','supplies',400,800,
+        synthetic,{guild_raids_money:null,guild_raids_supplies:null});
+    const cb=ranked.find(x=>x.name==='Clapboard House');
+    const ba=ranked.find(x=>x.name==='Bakery');
+    assert.equal(cb.grossAffordable,false);
+    assert.equal(cb.grossShortages.guild_raids_money,110000);
+    assert.equal(cb.affordable,null);
+    assert.equal(ba.grossAffordable,true);
+    assert.equal(ba.affordable,null);
+    const decision=advisor.advise({profile:'donor',stock:synthetic,
+        entities:[{cityentity_id:'bakery'}],definitions:{clapboard,bakery},
+        reserves:{guild_raids_money:null,guild_raids_supplies:null}});
+    assert.equal(decision.recommendations.some(x=>x.code==='build-candidate'),false);
+    assert.equal(decision.blockedBuilds.find(x=>x.name==='Clapboard House')
+        .grossShortage.guild_raids_money,110000);
+});
