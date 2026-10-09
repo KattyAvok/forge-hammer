@@ -46,21 +46,21 @@
     }
 
     function inferPhase(f,areas) {
-        if(!f || f.unknown) return {code:'unknown',confidence:'low',reason:'Incomplete building definitions'};
+        if(!f || f.unknown) return {code:'unknown',confidence:'low',reason:'Chybí definice některých budov.'};
         const c=f.counts, count=k=>c[k]||0;
         const hasRope=count('ropery')>0, hasBakery=count('bakery')>0,
             hasTier2=count('alchemist')>0 || count('doctor')>0 || count('printer')>0;
         if(hasBakery) return {code:'advanced',confidence:'medium',
-            reason:'Bakery is present; this corresponds to late development in reference guides'};
+            reason:'V osadě je Bakery, což odpovídá pokročilé fázi referenčních strategií.'};
         if(hasRope && (count('alchemist')>=4 || count('printer')>=2 ||
             (qty(areas)&&areas>=19))) return {code:'expansion',confidence:'medium',
-            reason:'Ropery and expanded infrastructure already exist'};
+            reason:'Ropery i rozvinutá infrastruktura už jsou v osadě.'};
         if(hasRope) return {code:'rope',confidence:'medium',
-            reason:'Rope production available; expansion stage is underway'};
+            reason:'Výroba Rope je dostupná; rozšiřování už pravděpodobně probíhá.'};
         if(hasTier2) return {code:'early-rebuild',confidence:'low',
-            reason:'Advanced production/culture is present but Rope stage not observed'};
+            reason:'Pokročilejší výroba nebo kultura jsou přítomné, ale rozvoj Rope zatím nepotvrzen.'};
         return {code:'foundation',confidence:'low',
-            reason:'No later-stage guide anchor found; previous demolitions cannot be reconstructed'};
+            reason:'Nebyl nalezen jednoznačný znak pokročilejší fáze. Minulé demolice nelze zpětně určit.'};
     }
 
     function moneyCost(definition) {
@@ -105,7 +105,7 @@
         const money=stock?.guild_raids_money, supplies=stock?.guild_raids_supplies,
             alloy=stock?.guild_raids_chrono_alloy;
         if(!qty(money)||!qty(supplies)||!qty(alloy))
-            return {name:'unknown',reason:'Not all QI stocks were observed'};
+            return {name:'unknown',reason:'Některé zásoby QI se zatím nepodařilo načíst.'};
         const short=RESOURCE_IDS.map(id=>({
             id, cost:planCost[id], available:stock[id]
         })).filter(x=>qty(x.cost)&&x.cost>x.available);
@@ -113,11 +113,11 @@
             short.sort((a,b)=>(b.cost-b.available)/Math.max(1,b.cost)-
                 (a.cost-a.available)/Math.max(1,a.cost));
             return {name:short[0].id.replace('guild_raids_',''),
-                reason:'A verified planned cost exceeds current holdings'};
+                reason:'Ověřené náklady plánované investice převyšují aktuální zásoby.'};
         }
         if(profile==='fighter' && alloy < 250)
-            return {name:'chrono_alloy',reason:'Chrono Alloy is low; recruitment and higher-tier builds may be constrained'};
-        return {name:'unverified',reason:'Next building and node costs are needed to identify an economic bottleneck reliably'};
+            return {name:'chrono_alloy',reason:'Zásoba Chrono Alloy je nízká; může omezovat nábor a pokročilou výstavbu.'};
+        return {name:'unverified',reason:'Bez cen dalších staveb a uzlů nelze spolehlivě určit ekonomické omezení.'};
     }
 
     // Candidate building ranking from QI-marked metadata. This does NOT prove
@@ -303,7 +303,7 @@
             result.recommendations.push({code,priority,title,why,
                 limitations,actionable:false,...extra});
         if(!f || f.unknown){
-            result.blockers.push('Building map or definitions incomplete');
+            result.blockers.push('Mapa osady nebo definice budov jsou neúplné.');
             return result;
         }
         const population=observed.guild_raids_total_population,
@@ -312,7 +312,7 @@
         const factor=qty(population)&&qty(happy)&&population>0?
             (happy/population>=2?1.5:null):null;
         if(!qty(population)||!qty(available)||!qty(happy)){
-            result.blockers.push('Current population/euphoria from resource bag unavailable');
+            result.blockers.push('Aktuální populace nebo euforie nejsou ve skladu dostupné.');
         }else if(factor===null){
             const shortfall=Math.max(0,Math.ceil(2*population-happy));
             add('culture',100,'Zvýšit aktivní euforii',
@@ -350,7 +350,7 @@
                     ' nad ručním minimem.',
                     'Nejde o bezpečné darování: chybí ověřený plán staveb a náklady uzlu.',
                     {surplusAboveManualReserve:after});
-            }else result.blockers.push('Donor: no complete protected reserve or verified building budget');
+            }else result.blockers.push('Donor: chybí úplná chráněná rezerva nebo ověřený rozpočet další výstavby.');
         }
         // Replacement exploration: only existing buildings with observed
         // contributions. Never claim an actual sell/build is possible.
@@ -380,7 +380,7 @@
         // sell/build sequences; suppress these misleading "recommendations".
         const priced=ranked.filter(candidate=>candidate.cost !== null);
         if(ranked.length && priced.length===0)
-            result.blockers.push('Building suggestions suppressed: current QI construction prices are unverified');
+            result.blockers.push('Návrhy konkrétních staveb byly potlačeny: aktuální stavební ceny QI nejsou ověřené.');
         for(const candidate of priced.slice(0,3)){
             const costText=candidate.cost?
                 'Cena z metadat: '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
@@ -391,7 +391,7 @@
                 {candidate});
         }
         if(result.focus.name==='unverified'){
-            result.blockers.push('Cannot score investment payback without verified current costs and production horizon');
+            result.blockers.push('Bez ověřených cen a časového horizontu nelze vyhodnotit návratnost investic.');
         }
         result.recommendations.sort((a,b)=>b.priority-a.priority);
         return result;
