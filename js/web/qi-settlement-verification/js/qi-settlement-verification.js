@@ -71,12 +71,18 @@
                 if(!valid(p.spent[key])||!near(costSum[key]||0,p.spent[key]))
                     flag('step-cost-does-not-match-total');
             }
-            for(const k of resources){
+            // Check all paid goods (Rope, Bronze, Honey, etc.) as well
+            // as the three core currencies. Unknown QI fields are never
+            // treated as free or unspent after a construction operation.
+            const allPaid=new Set([...resources,
+                ...Object.keys(p.spent).filter(k=>/^guild_raids_[a-z0-9_]+$/.test(k))]);
+            for(const k of allPaid){
                 const spent=p.spent[k]??0;
                 const remain=p.remaining[k];
-                if(!valid(spent)||!valid(remain))
+                const initial=stock[k];
+                if(!valid(initial)||!valid(spent)||!valid(remain))
                     flag('required-plan-balance-missing');
-                else if(!near(stock[k]-spent,remain))
+                else if(!near(initial-spent,remain))
                     flag('plan-budget-not-conserved');
                 if(profile==='donor'&&valid(reserves[k])&&valid(remain)&&
                     remain+1e-9<reserves[k])
