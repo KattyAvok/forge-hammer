@@ -31,7 +31,7 @@ Run `QISettlementSupport.PriceDiscovery()` in the game console, inside the QI se
 
 The goal is to establish whether modern metadata exposes construction prices at another nested path. If `definitionsWithQIPriceTokens` remains zero, the next narrowly scoped investigation is to inspect the **existing build-menu response schema**, still without making new game requests. Only after confirming the path may the optimizer use it to decide `sell -> build -> collect/donate` and compute budget/time feasibility.
 
-**Validation:** 48/48 isolated JS scenarios PASS after adding schema-discovery tests. No new Chrome integration test or full Node CLI run yet.
+**Validation:** 54/54 isolated JS scenarios PASS after adding schema-discovery tests. No new Chrome integration test or full Node CLI run yet.
 
 ## 2026-10-09 Chrome stale-build fix
 The user successfully loaded the automated Donor UI, but `QISettlementSupport.PriceDiscovery()`
@@ -62,8 +62,51 @@ suggestions.
    `1.8.1.1-qi-price-probe`.
 6. Only then call `QISettlementSupport.PriceDiscovery()`.
 
-48/48 isolated JS checks passed against fetched branch sources. These are
+54/54 isolated JS checks passed against fetched branch sources. These are
 not Chrome integration or standalone Node CLI results.
+
+## 2026-10-09 validated live structural price path
+User provided sanitized `QISettlementSupport.PriceDiscovery()` from a real QI city:
+- `examinedDefinitions = 16`
+- `definitionsWithQIPriceTokens = 16`
+- `truncatedTraversalCount = 0`
+- `components.AllAge.[key].cost.resources`: 16 distinct definitions; all tracked QI money, supplies, alloy keys found (metadata-only structural observations)
+- `components.AllAge.production.options[item].products[item].requirements.resources`: 3 definitions, 12 occurrences (production-option inputs, **not** building purchase prices)
+- `components.AllAge.production.options[item].products[item].playerResources.resources`: 9 definitions, 12 occurrences (production outputs; **not** building purchase prices)
+
+The `[key]` component name is deliberately redacted by the discovery tool.
+The evidence strongly supports the existence of a build-cost branch beneath
+`AllAge`, but alone cannot confirm which component supplies the live purchase price
+for every building or whether the values are current build-menu prices.
+
+**Code change**:
+- New `priceEvidence(definition)` supports a unique direct
+  `components.AllAge.<component>.cost.resources` candidate, or one legacy
+  `requirements.cost.resources` branch. It does **not** traverse into production
+  options, does not infer zero for absent keys, and refuses ambiguous multiple
+  candidates or unsupported positive resources.
+- `moneyCost` now returns all recognized positive, spendable `guild_raids_*`
+  cost keys including Rope/Alloy when observed. Population/happiness/QA pseudo
+  resources are excluded from purchase costs and handled separately.
+- `catalogCoverage.priced` now measures **parsed metadata candidates**, NOT
+  player-confirmed prices. The UI label was changed accordingly.
+- `QISettlementSupport.CostSamples()` returns a bounded 16-building set of
+  public building names, extracted price candidates, and source labels for
+  comparison with the actual QI build menu. No world/player identifiers, map
+  positions or raw responses included.
+- Development manifest and visible build marker advanced to
+  **1.8.1.2** / **1.8.1.2-qi-price-parser**.
+- **54/54 isolated JavaScript test scenarios passed** after this change.
+
+**Acceptance test**: install the new version in a fresh unpacked folder,
+confirm `QISettlementSupport.Status().build`, enter QI, then call
+`QISettlementSupport.CostSamples()`. Compare 1–2 extracted building costs to the
+current QI construction menu before considering any cost valid for automatic
+sell/build/donate decisions.
+
+**Still not proven**: building unlock state, exact layout, demolition impact,
+resource acceleration, remaining horizon and donation-node availability.
+Therefore numeric prices alone do NOT complete the full action-sequence optimizer.
 
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
@@ -81,7 +124,7 @@ Run in a checked-out working branch:
 node --test tests/qi-settlement-*.test.cjs
 ```
 
-The current five test files passed **48/48 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
+The current five test files passed **54/54 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
 
 After loading the unpacked development extension, enter the QI settlement; read the panel's **Automatická analýza aktuální osady** section and then in the developer console call:
 
