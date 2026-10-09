@@ -117,3 +117,65 @@ test('invalid stored stage returns to safe default',()=>{
         JSON.stringify({profile:'donor',stage:'unsafe-stage',reserveMoney:'',reserveSupplies:''}));
     assert.equal(t.api.Status().selectedStage,'day1a');
 });
+
+test('visible QI panel renders selected guide, observed stock and donor reserves',()=>{
+    const store=new Map(), handlers={};
+    const createNode=()=>({
+        length:1, children:[], raw:'',
+        text(v){if (arguments.length) {this.raw+=String(v);return this;}return this.raw;},
+        append(...v){this.children.push(...v);return this;},
+        empty(){this.children=[];this.raw='';return this;},
+        val(v){if (arguments.length) {this.value=v;return this;}return this.value;},
+        attr(){return this;},on(){return this;}
+    });
+    let hasWindow=false;
+    const body=createNode();
+    const $=value=>{
+        if(value==='#qiSettlementSupport')return {length:hasWindow?1:0};
+        if(value==='#qiSettlementSupportBody')return {...body,length:hasWindow?1:0,
+            append:(...nodes)=>{body.append(...nodes);return body;},
+            empty:()=>{body.empty();return body;}};
+        return createNode();
+    };
+    const FH={
+        World:'world1',Player:{ID:123},ActiveMap:'guild_raids',
+        Main:{CityEntities:{}},
+        Storage:{
+            getItem:k=>store.get(k)??null,
+            setItem:(k,v)=>store.set(k,v)
+        },
+        proxy:{addHandler:(name,method,callback)=>{
+            if(typeof method==='function'){callback=method;method='all';}
+            (handlers[name] ||= {})[method] ||= [];
+            handlers[name][method].push(callback);
+        }},
+        HTML:{
+            Box:()=>{hasWindow=true;},
+            AddCssFile:()=>{},CloseOpenBox:()=>{}
+        }
+    };
+    store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day4b',reserveMoney:'500',reserveSupplies:'100'}));
+    const globals={FH,window:{location:{hostname:'world1.forgeofempires.com'}},
+        QISettlementCore:core,QISettlementStrategies:strategies,$};
+    globals.globalThis=globals;
+    vm.runInNewContext(source,globals);
+    const send=(service,method,responseData)=>{
+        for(const fn of handlers[service]?.[method]||[])fn({requestMethod:method,responseData});
+        for(const fn of handlers[service]?.all||[])fn({requestMethod:method,responseData});
+    };
+    send('GuildRaidsService','getState',{__class__:'GuildRaidsRunningState',
+        endsAt:20000,raidInstance:{difficultyLevel:9}});
+    send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:1000,guild_raids_supplies:300,
+        guild_raids_happiness:200,guild_raids_total_population:100
+    }});
+    globals.QISettlementSupport.Show();
+    const collect=node=>node.raw+' '+node.children.map(n=>typeof n==='string'?n:collect(n)).join(' ');
+    const output=collect(body);
+    assert.match(output,/Bakery/);
+    assert.match(output,/Donor/);
+    assert.match(output,/QI mince/);
+    assert.match(output,/Přebytek mincí/);
+    assert.match(output,/500/);
+});
