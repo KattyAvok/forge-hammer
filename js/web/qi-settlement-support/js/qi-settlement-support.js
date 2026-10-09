@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.2-qi-price-parser';
+    const BUILD = '1.8.1.3-qi-scenario-preview';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     const state = {
@@ -202,6 +202,11 @@
                         .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v)).join(', ');
                     if(deficits)entry.append($('<small/>').text('Chybí: '+deficits));
                 }
+                if(q.financiallyCovered) {
+                    const leftovers=Object.entries(q.afterCost||{})
+                        .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v)).join(', ');
+                    if(leftovers)entry.append($('<small/>').text('Zbude po stavbě: '+leftovers));
+                }
                 const after=q.afterCompletion;
                 entry.append($('<small/>').text(
                     'Volná populace během stavby: '+numberText(q.duringConstruction.availablePopulation)+
@@ -217,8 +222,8 @@
                     .append($('<strong/>').text('Vyměnit: '+q.remove+' → '+q.add))
                     .append($('<small/>').text(
                         'Po prodeji volná populace: '+numberText(q.afterSale.availablePopulation)+
-                        ' · nová stavba potřebuje nejvýše '+numberText(q.build.cost?.guild_raids_money)+
-                        ' QI mincí.'
+                        ' · euforie: '+numberText(q.afterSale.euphoria)+
+                        ' · cena nové stavby v QI mincích: '+numberText(q.build.cost?.guild_raids_money)+'.'
                     ))
                     .append($('<small/>').text(
                         'Možná úspora plochy: '+numberText(q.areaChange)+
@@ -296,7 +301,7 @@
 
         if (preferences.profile === 'donor') {
             panel.append(section('Donor — chráněné rezervy'));
-            panel.append(hint('Zadej minimální částku, kterou potřebuješ ponechat pro další výstavbu. Bez rezervy nepočítáme bezpečný přebytek. Tento výpočet nezná ceny dalších budov ani konkrétního donačního uzlu.'));
+            panel.append(hint('Zadej minimální částku, kterou potřebuješ ponechat pro další výstavbu. Bez rezervy nepočítáme bezpečný přebytek. Jednotlivé stavební ceny už umíme načíst z metadat, ale plán navazujících staveb ani cenu konkrétního donačního uzlu ještě automaticky nesestavujeme.'));
             const reserveEditor = (label, property) => {
                 const holder = $('<label class="qi-support-reserve"/>').text(label + ': ');
                 const input = $('<input type="number" min="0" step="1" inputmode="numeric"/>')
@@ -323,7 +328,7 @@
                     numberText(capacities?.[moneyKey]?.available)));
                 panel.append(row('Přebytek zásob nad zadanou rezervou',
                     numberText(capacities?.[suppliesKey]?.available)));
-                panel.append(hint('Pozor: Přebytek nad ručně zadanou rezervou není ověřená bezpečná částka k darování. Nezahrnuje budoucí ceny ani Quantum Actions na konkrétním uzlu.'));
+                panel.append(hint('Pozor: Přebytek nad ručně zadanou rezervou není ověřená bezpečná částka k darování. Nezahrnuje automatickou rezervu na navazující stavební plán ani náklady a Quantum Actions konkrétního uzlu.'));
             } else {
                 panel.append(hint('Přebytek zatím nepočítám — nejsou zadané obě rezervy.'));
             }
