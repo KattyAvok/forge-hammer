@@ -187,3 +187,23 @@ test('uncertain geometry stays unknown and does not claim available space',()=>{
     assert.equal(geometry.probeSequence(idx,[def(2,2),def(2,2),def(1,1)])
         .status,'unknown');
 });
+
+test('two released rectangles must not overlap each other',()=>{
+    const defs={house:def(2,2)};
+    const e={cityentity_id:'house',x:0,y:0};
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:2}],[e],defs);
+    const r=geometry.rectOfBuilding(e,defs);
+    const result=geometry.probeSequence(idx,[def(2,2)],[r,{...r}]);
+    assert.equal(result.status,'unknown');
+    assert.equal(result.reason,'overlapping-demolition-footprints');
+});
+test('at most two verified sales may be used for a geometric scenario',()=>{
+    const index=geometry.indexMap([{x:0,y:0,width:4,length:4}],[],{});
+    const result=geometry.probeSequence(index,[def(1,1)],[
+        {x:0,y:0,width:1,length:1},
+        {x:1,y:0,width:1,length:1},
+        {x:2,y:0,width:1,length:1}
+    ]);
+    assert.equal(result.status,'unknown');
+    assert.equal(result.reason,'unverified-demolition-set');
+});
