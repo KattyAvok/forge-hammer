@@ -172,6 +172,66 @@
             panel.append(hint('Kandidáti nejsou příkazy k demolici ani potvrzeně dostupné stavby.'));
         }
 
+        panel.append(section('Ekonomické varianty z aktuálních cen'));
+        if(!decision) {
+            panel.append(hint('Scénáře nelze počítat bez aktuální mapy, zásob a aktivního QI běhu.'));
+        } else if (preferences.profile==='donor' &&
+            (preferences.reserveMoney==='' || preferences.reserveSupplies==='')) {
+            panel.append(hint('Donor: k porovnání investic nejprve stanov chráněnou rezervu mincí i zásob níže.'));
+        } else {
+            const protectedAmounts=readReserves(preferences);
+            const reserves={};
+            for(const [key,value] of Object.entries(protectedAmounts))
+                if(valid(value))reserves[key]=value;
+            const scenarios=globalThis.QISettlementSimulator.explore({
+                stock:state.stock,entities:state.map.entities,
+                definitions:FH.Main?.CityEntities,
+                profile:preferences.profile,reserves
+            });
+            const scenarioList=$('<ol class="qi-support-scenarios"/>');
+            for(const q of scenarios.builds.slice(0,4)){
+                const title='Postavit: '+q.name;
+                const result=q.financiallyCovered===null?'Cena nebo zásoba neznámá':
+                    q.financiallyCovered?'Finančně kryto':'Nedostatek zdrojů';
+                const entry=$('<li/>').append($('<strong/>').text(title+' — '+result));
+                const costs=Object.entries(q.cost||{})
+                    .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v)).join(', ');
+                entry.append($('<p/>').text('Stavební cena (metadata): '+costs));
+                if(!q.financiallyCovered){
+                    const deficits=Object.entries(q.shortages||{})
+                        .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v)).join(', ');
+                    if(deficits)entry.append($('<small/>').text('Chybí: '+deficits));
+                }
+                const after=q.afterCompletion;
+                entry.append($('<small/>').text(
+                    'Volná populace během stavby: '+numberText(q.duringConstruction.availablePopulation)+
+                    ' · po dokončení: '+numberText(after.availablePopulation)+
+                    ' · euforie po dokončení: '+numberText(after.euphoria)
+                ));
+                if(q.populationViable===false)
+                    entry.append($('<small/>').text('Nedostatečná populace – tento scénář neprovádět.'));
+                scenarioList.append(entry);
+            }
+            for(const q of scenarios.replacements.slice(0,3)){
+                const entry=$('<li/>')
+                    .append($('<strong/>').text('Vyměnit: '+q.remove+' → '+q.add))
+                    .append($('<small/>').text(
+                        'Po prodeji volná populace: '+numberText(q.afterSale.availablePopulation)+
+                        ' · nová stavba potřebuje nejvýše '+numberText(q.build.cost?.guild_raids_money)+
+                        ' QI mincí.'
+                    ))
+                    .append($('<small/>').text(
+                        'Možná úspora plochy: '+numberText(q.areaChange)+
+                        ' polí; souvislý prostor a cesty neověřeny.'
+                    ));
+                scenarioList.append(entry);
+            }
+            panel.append(scenarioList);
+            if(!scenarios.builds.length && !scenarios.replacements.length)
+                panel.append(hint('Z dostupných cen a definic nelze navrhnout ani předběžnou variantu.'));
+            panel.append(hint('POZOR: Jde o rozpočtovou simulaci, ne optimalizované pořadí akcí. Nabídka, prostor, cesty, délka výstavby a zbývající QI čas nejsou zatím ověřené.'));
+        }
+
         panel.append(section('Referenční návod — volitelná etapa'));
         const strategyData = globalThis.QISettlementStrategies;
         const stagePicker = $('<select id="qi-support-stage"/>');
