@@ -490,3 +490,37 @@ test('planner cache reuses an unchanged map/stock and invalidates on new stock o
     t.api.ShareReport();
     assert.equal(count,3);
 });
+
+test('compact report counts protected busy-production sale candidates',()=>{
+    const t=setup();t.FH.ActiveMap='guild_raids';
+    t.FH.Main.CityEntities.bakery={
+        name:'Bakery',type:'production',components:{AllAge:{
+            placement:{size:{x:2,y:2}},
+            staticResources:{resources:{resources:{guild_raids_population:-20}}},
+            production:{options:[{time:3600,products:[{
+                playerResources:{resources:{guild_raids_supplies:2000}}
+            }]}]},
+            buildingRequirements:{cost:{resources:{
+                guild_raids_money:84000,guild_raids_supplies:100000
+            }}}
+        }}
+    };
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:2000000000
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:200000,guild_raids_supplies:200000,
+        guild_raids_chrono_alloy:2000,
+        guild_raids_population:100,guild_raids_total_population:200,
+        guild_raids_happiness:500
+    }});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        unlocked_areas:[{x:0,y:0,width:6,length:6}],
+        entities:[{cityentity_id:'bakery',x:0,y:0,
+            state:{__class__:'ProducingState',next_state_transition_in:60}}]
+    });
+    const report=JSON.parse(t.api.ShareReport());
+    assert.equal(report.sequencePreview.skippedBusySaleCandidates,1);
+    assert.equal(report.productionReadiness.active,1);
+    assert.equal(report.sequencePreview.jointFootprintFitPlans>=0,true);
+});
