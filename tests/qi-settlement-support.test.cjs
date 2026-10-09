@@ -208,3 +208,22 @@ test('automatic phase is independent of manually selected guide stage',()=>{
     assert.equal(status.autoPhase.code,'rope');
     assert.equal(status.autoPhase.confidence,'medium');
 });
+
+test('cost samples are opt-in and unavailable outside QI map',()=>{
+    const t=setup();
+    t.FH.Main.CityEntities.bakery={
+        name:'Bakery',type:'production',
+        components:{AllAge:{
+            staticResources:{resources:{resources:{guild_raids_population:-50}}},
+            buildingRequirements:{cost:{resources:{
+                guild_raids_money:2000,guild_raids_supplies:1500
+            }}}
+        }}
+    };
+    assert.equal(t.api.CostSamples(),null);
+    t.FH.ActiveMap='guild_raids';
+    const samples=t.api.CostSamples();
+    assert.equal(samples.summary.priced,1);
+    assert.equal(samples.samples[0].costs.guild_raids_money,2000);
+    assert.equal(samples.samples[0].name,'Bakery');
+});
