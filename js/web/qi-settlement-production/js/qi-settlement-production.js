@@ -67,6 +67,81 @@
             samples
         };
     }
+    // Mirrors the existing Forge Hammer QI CityMap calculation for buildings
+    // with exactly one production option: base*(euphoria factor + boost/100).
+    // Outputs remain per cycle, NOT per hour; option.time units are unverified.
+    function estimateCycle(definition,stock,boostSums={}) {
+        const all=definition?.components?.AllAge;
+        const options=all?.production?.options;
+        if(!Array.isArray(options)||options.length!==1)
+            return {status:'unresolved-production-option',actionable:false};
+        const products=options[0]?.products;
+        if(!Array.isArray(products)||products.length!==1)
+            return {status:'unresolved-products',actionable:false};
+        const base=resources(products[0]?.playerResources?.resources);
+        if(!Object.keys(base).length)
+            return {status:'no-known-qi-output',actionable:false};
+        const needs=resources(products[0]?.requirements?.resources);
+        const observedPopulation=stock?.guild_raids_total_population;
+        const observedEuphoria=stock?.guild_raids_happiness;
+        const ratio=valid(observedPopulation)&&observedPopulation>0 &&
+            valid(observedEuphoria)?observedEuphoria/observedPopulation:null;
+        function factor(r){
+            if(r===null)return null;
+            if(r<=.2)return .2;
+            if(r<=.6)return .6;
+            if(r<=.8)return .8;
+            if(r<=1.2)return 1;
+            if(r<=1.4)return 1.1;
+            if(r<2)return 1.2;
+            return 1.5;
+        }
+        const euphoria=definition?.type==='main_building'?1:factor(ratio);
+        if(euphoria===null)
+            return {status:'missing-observed-euphoria',actionable:false};
+        const output={}, net={}, multipliers={};
+        for(const [key,value] of Object.entries(base)) {
+            const extra=key==='guild_raids_money'?
+                boostSums?.guild_raids_coins_production:
+                key==='guild_raids_supplies'?
+                boostSums?.guild_raids_supplies_production:0;
+            if(extra!==undefined&&!valid(extra))
+                return {status:'unknown-production-boost',actionable:false};
+            const boost=definition?.type==='main_building'?0:(extra||0);
+            multipliers[key]=euphoria+boost/100;
+            output[key]=Math.round(value*multipliers[key]);
+            net[key]=output[key]-(needs[key]||0);
+        }
+        for(const [key,value] of Object.entries(needs))
+            if(!(key in net))net[key]=-value;
+        return {status:'estimated-cycle',output,inputs:needs,net,
+            multipliers,
+            optionTime:valid(options[0].time)?options[0].time:null,
+            optionTimeUnit:'unverified',
+            modeledAs:definition?.type==='main_building'?
+                'main-building-no-boost':'single-option-qi-citymap-formula',
+            actionable:false};
+    }
+
+    // No cross-resource exchange rate exists: report only separate
+    // payback cycle counts for currencies whose output is positive.
+    function perResourcePayback(definition,constructionCost,stock,boostSums) {
+        const estimate=estimateCycle(definition,stock,boostSums);
+        if(estimate.status!=='estimated-cycle'||!constructionCost||
+            typeof constructionCost!=='object')
+            return {status:'unavailable',cycles:{},estimate};
+        const cycles={};
+        for(const [key,cost] of Object.entries(constructionCost)) {
+            const net=estimate.net[key];
+            cycles[key]=valid(cost)&&typeof net==='number'&&net>0?
+                Math.ceil(cost/net):null;
+        }
+        return {status:'currency-specific-cycles',cycles,estimate,
+            globallyComparable:false,
+            timePaybackVerified:false,
+            actionable:false};
+    }
+
     function qiBoostSummary(boosts) {
         const input=boosts?.Sums;
         if(!input||typeof input!=='object')return {status:'not-available'};
@@ -81,7 +156,7 @@
         return {status:Object.keys(items).length?'observed':'not-available',
             fields:items,source:'Boosts.Sums',combatInterpretationVerified:false};
     }
-    const api=Object.freeze({inspect,qiBoostSummary});
+    const api=Object.freeze({inspect,estimateCycle,perResourcePayback,qiBoostSummary});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementProduction=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
