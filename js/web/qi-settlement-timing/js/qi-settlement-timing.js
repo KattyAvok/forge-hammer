@@ -83,16 +83,20 @@
             possibleCyclesAtZeroBuildTime:count,rawCycleDuration:time});
     }
     return {
-        status:'optimistic-upper-bound',
+        // This is NOT a mathematical upper bound on NET benefit: removing
+        // production can reduce losses depending on when it was sold.
+        status:'zero-delay-comparison',
         hoursRemaining,
         unitHypothesis:calibration.unit,
         projectionDelayAssumed:0,
         constructionAndProductionStartUnknown:true,
         possibleResourceDelta:byResource,
+        optimisticUpperBound:null,
+        comparisonOnly:true,
         perBuilding:used,
         spendableGains:null,
         actionable:false,
-        warning:'Maximum illustration only: no construction delay, no start/wait cost and unlimited cycle-start resources are assumed; do not spend or donate based on this bound.'
+        warning:'Zero-delay hypothetical comparison, not an upper bound on net gain. Construction timing, production starts, payments and collection availability are unverified. Do not spend or donate based on this figure.'
     };
  }
  const api=Object.freeze({inspect,theoreticalPlanHorizon});
