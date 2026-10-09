@@ -95,6 +95,38 @@
         return result;
     }
 
+    function scenarioStatus() {
+        if (!state.running || state.mapStale || !state.map?.entities || !state.stock)
+            return {status:'missing-or-stale-state'};
+        const prefs=settings();
+        const selected={};
+        if(prefs.profile==='donor') {
+            for(const [key,value] of Object.entries(readReserves(prefs)))
+                if(valid(value))selected[key]=value;
+        }
+        const result=globalThis.QISettlementSimulator.explore({
+            stock:state.stock,entities:state.map.entities,
+            definitions:FH.Main?.CityEntities,
+            profile:prefs.profile,reserves:selected
+        });
+        const checked=['guild_raids_money','guild_raids_supplies',
+            'guild_raids_chrono_alloy','guild_raids_population',
+            'guild_raids_total_population','guild_raids_happiness'];
+        return {
+            status:result.status,
+            missingEconomicKeys:checked.filter(key=>!valid(state.stock[key])),
+            counts:{
+                modeledBuilds:result.builds.length,
+                provisionalBuilds:result.provisionalBuilds?.length||0,
+                blockedBuilds:result.blockedBuilds.length,
+                replacementScenarios:result.replacements.length
+            },
+            // Intentionally excludes balances, metadata ids, map coordinates,
+            // player/world identifiers and full game responses.
+            profile:prefs.profile
+        };
+    }
+
     function render() {
         const root = $('#' + ID + 'Body');
         if (!root.length) return;
@@ -489,6 +521,7 @@
 
     globalThis.QISettlementSupport = Object.freeze({
         Show: show,
+        ScenarioStatus: scenarioStatus,
         // Explicit opt-in metadata inspection; returns only aggregate safe paths,
         // no source objects, building ids or individual player data.
         PriceDiscovery: () => FH.ActiveMap === 'guild_raids' ?
