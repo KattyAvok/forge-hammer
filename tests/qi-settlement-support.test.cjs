@@ -428,3 +428,27 @@ test('single report includes passively observed QI map cost paths without numeri
     assert.equal(content.includes('777777777'),false);
     assert.equal(content.includes('987654321'),false);
 });
+
+test('leaving QI invalidates diagnostic readiness even if a previous map snapshot remains',()=>{
+    const t=setup();
+    t.FH.ActiveMap='guild_raids';
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:1999999999
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:100000,guild_raids_supplies:200000,
+        guild_raids_chrono_alloy:2000,guild_raids_total_population:100,
+        guild_raids_population:80,guild_raids_happiness:200
+    }});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[],unlocked_areas:[{x:500,y:500,width:4,length:4}]
+    });
+    assert.equal(t.api.ScenarioStatus().status,'model-preview');
+    t.FH.ActiveMap='main';
+    assert.equal(t.api.ScenarioStatus().status,'missing-or-stale-state');
+    assert.equal(t.api.Status().autoPhase,null);
+    t.api.ReportToConsole();
+    const report=JSON.parse(t.logs[t.logs.length-1]);
+    assert.equal(report.state.mapFresh,false);
+    assert.equal(report.geometry.status,'missing-or-stale-state');
+});
