@@ -352,6 +352,10 @@
 
     globalThis.QISettlementSupport = Object.freeze({
         Show: show,
+        // Explicit opt-in metadata inspection; returns only aggregate safe paths,
+        // no source objects, building ids or individual player data.
+        PriceDiscovery: () => FH.ActiveMap === 'guild_raids' ?
+            globalThis.QISettlementAdvisor.priceSchemaDiscovery(FH.Main?.CityEntities) : null,
         // Snapshot excludes internal world/player identifiers and arbitrary game responses.
         Status: () => ({
             running:state.running, difficulty:state.difficulty,
