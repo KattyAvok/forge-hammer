@@ -53,9 +53,11 @@
             collectibleVerified:false,
             stateVerified:true,
             recommendedReview:isComplete?'inspect-collection-before-selling':
-                seconds!==null && seconds<=3*3600?
-                    'wait-for-transition-before-considering-sale':
-                    'protect-in-progress-production',
+                aheadOfEnd===false?
+                    'transition-beyond-observed-qi-end':
+                    seconds!==null && seconds<=3*3600?
+                        'wait-for-transition-before-considering-sale':
+                        'protect-in-progress-production',
             safeSaleNow:false
         });
     }
