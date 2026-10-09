@@ -107,23 +107,26 @@
         maxCandidates=5,maxPairs=6}={}) {
         const advisor=root.QISettlementAdvisor;
         if(!stock||!Array.isArray(entities)||!definitions)
-            return {status:'missing-state',builds:[],blockedBuilds:[],replacements:[],blockers:['Chybí aktuální mapa nebo sklad.']};
+            return {status:'missing-state',builds:[],provisionalBuilds:[],blockedBuilds:[],replacements:[],blockers:['Chybí aktuální mapa nebo sklad.']};
         const catalog=advisor.rankBuilds(definitions,profile,
             profile==='donor'?'supplies':'chrono_alloy',
             stock[total],stock[happy],stock,reserves);
-        const builds=[], blockedBuilds=[], replacements=[], seen=new Set();
+        const builds=[], provisionalBuilds=[], blockedBuilds=[], replacements=[], seen=new Set();
         // Consider all ranked candidates before capping; a high-score,
         // unaffordable building must not displace an affordable one.
         const replacementCandidates=[];
         for(const candidate of catalog){
             if(candidate.cost===null)continue;
-            const choice=Object.values(definitions).find(def=>def?.name===candidate.name);
+            const choice=definitions[candidate.definitionId];
             if(!choice ||seen.has(candidate.name))continue;
             seen.add(candidate.name);
             const quoted=quoteBuild({stock,definition:choice,reserves});
             if(quoted.priceStatus!=='metadata-candidate')continue;
             if(quoted.modeledConstraintsPass) {
                 if(builds.length<maxCandidates)builds.push(quoted);
+            } else if(quoted.financiallyCovered===true &&
+                quoted.populationViable!==false) {
+                if(provisionalBuilds.length<maxCandidates)provisionalBuilds.push(quoted);
             } else if(blockedBuilds.length<maxCandidates) {
                 blockedBuilds.push(quoted);
             }
@@ -139,7 +142,9 @@
             if(/construct|building/i.test(String(existing?.state?.__class__||'')))continue;
             for(const quote of replacementCandidates) {
                 if(replacements.length>=maxPairs)break;
-                const added=Object.values(definitions).find(d=>d?.name===quote.name);
+                const linked=catalog.find(c=>c.name===quote.name &&
+                    definitions[c.definitionId]);
+                const added=linked?definitions[linked.definitionId]:null;
                 if(!added)continue;
                 const replacement=quoteReplacement({stock,removed,added,reserves});
                 if(replacement.modeledConstraintsPass){
@@ -153,7 +158,7 @@
         }
         return {
             status:'model-preview',
-            builds,blockedBuilds,replacements,
+            builds,provisionalBuilds,blockedBuilds,replacements,
             blockers:[
                 'Kandidáti nezohledňují aktuální stavební nabídku, volné parcely ani cesty.',
                 'Časy výroby, časové okno QI a dopady darování nejsou oceněny.',
