@@ -220,6 +220,27 @@ investment schedule, node-specific donation requirements, QI action constraints
 and available time. Current gross results are diagnostic planning information,
 not game action recommendations.
 
+## 2026-10-09: Donor upper-panel visibility (1.8.1.6)
+
+A live Donor-mode screenshot confirmed the extension displays v1.8.1.5,
+price coverage 13/13, and correctly marks Clapboard House as blocked.
+However, the top screen also said no investment met all restrictions
+because manually protected reserves were absent. The lower gross-budget
+section was off-screen, so its browser rendering could not be confirmed.
+
+v1.8.1.6 now exposes an explicit `grossBuilds` list (price covered from
+observed stock and population viable, but NOT a safe recommendation) in
+the first `Automatická analýza` section. It also lists *gross* shortages
+next to blocked building names, making the blocked currency and missing
+amount visible without scrolling. Under an incomplete donor reserve,
+investment safety remains unknown, and the advisor explains this instead
+of claiming no financially covered building exists. The simulator and
+donation safety gates remain unchanged; no game actions occur.
+
+Tests: 69/69 isolated JavaScript cases pass, including separate covered
+Bakery and missing-money Clapboard in a synthetic Donor snapshot with
+no configured reserves. Chrome acceptance of v1.8.1.6 is still pending.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
