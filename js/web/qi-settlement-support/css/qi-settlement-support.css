@@ -20,3 +20,9 @@
 #qiSettlementSupport .qi-support-advice strong { display:block; font-weight:700; }
 #qiSettlementSupport .qi-support-advice p { margin:3px 0; }
 #qiSettlementSupport .qi-support-advice small { display:block; opacity:.75; }
+
+#qiSettlementSupport .qi-support-scenarios { padding-left:22px; margin:8px 0 14px; }
+#qiSettlementSupport .qi-support-scenarios li { padding:6px 0; border-bottom:1px solid rgba(128,128,128,.25); }
+#qiSettlementSupport .qi-support-scenarios strong { display:block; }
+#qiSettlementSupport .qi-support-scenarios p { margin:3px 0; }
+#qiSettlementSupport .qi-support-scenarios small { display:block; opacity:.8; margin:3px 0; }
