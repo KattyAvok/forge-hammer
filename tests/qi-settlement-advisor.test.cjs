@@ -220,3 +220,43 @@ test('cost samples avoid ids, map coordinates and player data',()=>{
     assert.equal(json.includes('aBuildingPrice'),false);
     assert.equal(output.samples[0].costs.guild_raids_money,10000);
 });
+
+test('Clapboard high score cannot outrank affordable Bakery in recommendations',()=>{
+    const clapboard=def('Clapboard House','residential',180,0,{guild_raids_supplies:1600});
+    clapboard.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:210000,guild_raids_supplies:200000,guild_raids_chrono_alloy:1000
+    }}};
+    const bakery=def('Bakery','production',-30,0,{guild_raids_supplies:200});
+    bakery.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:84000,guild_raids_supplies:100000,guild_raids_chrono_alloy:1000
+    }}};
+    const base={...stock,guild_raids_money:300000,guild_raids_supplies:150000,
+        guild_raids_chrono_alloy:1200};
+    const result=advisor.advise({profile:'fighter',stock:base,
+        entities:[{cityentity_id:'bakery'}],definitions:{clapboard,bakery}});
+    assert.equal(result.recommendations.some(x=>x.code==='build-candidate' &&
+        x.candidate.name==='Clapboard House'),false);
+    const bakerySuggestion=result.recommendations.find(x=>x.code==='build-candidate' &&
+        x.candidate.name==='Bakery');
+    assert.ok(bakerySuggestion);
+    const clap=result.blockedBuilds.find(x=>x.name==='Clapboard House');
+    assert.ok(clap);
+    assert.equal(clap.financialStatus,false);
+    assert.equal(clap.shortage.guild_raids_supplies,50000);
+});
+
+test('unknown Donor reserve does not become zero for an otherwise affordable building',()=>{
+    const bakery=def('Bakery','production',-20,0,{guild_raids_supplies:200});
+    bakery.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:20000,guild_raids_supplies:15000
+    }}};
+    const ranked=advisor.rankBuilds({bakery},'donor','supplies',400,800,stock,{
+        guild_raids_money:null,guild_raids_supplies:null
+    });
+    assert.equal(ranked.length,1);
+    assert.equal(ranked[0].affordable,null);
+    const advice=advisor.advise({profile:'donor',stock,entities:[
+        {cityentity_id:'bakery'}],definitions:{bakery},
+        reserves:{guild_raids_money:null,guild_raids_supplies:null}});
+    assert.equal(advice.recommendations.some(x=>x.code==='build-candidate'),false);
+});
