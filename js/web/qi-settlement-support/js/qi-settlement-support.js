@@ -713,12 +713,12 @@
                     const firstPlan=sequence.plans[0];
                     const projection=globalThis.QISettlementTiming.theoreticalPlanHorizon(
                         firstPlan,hours,evidence);
-                    if(projection.status==='optimistic-upper-bound') {
+                    if(projection.status==='zero-delay-comparison') {
                         const entries=Object.entries(projection.possibleResourceDelta)
                             .map(([key,value])=>key.replace('guild_raids_','')+
                                 ': '+(value>=0?'+':'−')+numberText(Math.abs(value)));
                         if(entries.length)
-                            panel.append(hint('Hypotetický účinek výroby při okamžitém dokončení staveb a bez prostojů: '+
+                            panel.append(hint('Hypotetická čistá změna produkce při nulové době výstavby (nejde o horní mez ani garantovaný výnos): '+
                                 entries.join(', ')+'. Není to dostupný sklad ani bezpečný výnos.'));
                     } else
                         panel.append(hint('Zatím chybí některé časy výrobních možností; hodinový výhled proto nelze sestavit.'));
