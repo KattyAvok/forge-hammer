@@ -182,6 +182,27 @@
     };
   }
 
+  // A conditional forecast; only valid for the exact construction pattern
+  // confirmed by comparing the current resource bag with the building audit.
+  // No forecast is generated when evidence is missing or inconsistent.
+  function forecastConstructionCompletion(comparison, stateAudit) {
+    const attribution = attributeConstructionGap(comparison, stateAudit);
+    if (attribution?.exactMatch !== true) return null;
+    const actual = comparison.observed;
+    const construction = stateAudit.construction;
+    const totalPopulation = actual.totalPopulation + construction.populationProvided;
+    const availablePopulation = actual.availablePopulation + construction.populationProvided;
+    const euphoria = actual.euphoria + construction.euphoria;
+    if (![totalPopulation, availablePopulation, euphoria].every(finiteNonnegative)) return null;
+    return {
+      status: 'conditional-forecast',
+      constructionCount: construction.count,
+      assumption: 'construction-population-consumption-already-reserved',
+      totalPopulation, availablePopulation, euphoria,
+      euphoriaFactor: euphoriaFactor(euphoria, totalPopulation)
+    };
+  }
+
   // Computes safe donation amounts per resource; never assumes missing stock is 0.
   function donationCapacity(stock, plannedCosts, minimumReserves = {}, buffer = {}, allowedResources = ['guild_raids_money', 'guild_raids_supplies']) {
     if (![stock, plannedCosts, minimumReserves, buffer].every(plainObject) ||
@@ -208,7 +229,8 @@
 
   return Object.freeze({
     normalizeRun, normalizeQIStock, normalizeMap, deriveEconomy,
-    reconcileEconomy, auditBuildingStates, attributeConstructionGap, donationCapacity
+    reconcileEconomy, auditBuildingStates, attributeConstructionGap,
+    forecastConstructionCompletion, donationCapacity
   });
 })();
     if (typeof module === 'object' && module.exports) module.exports = core;
