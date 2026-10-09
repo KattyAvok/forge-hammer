@@ -163,13 +163,16 @@
         for(const [id,def] of Object.entries(definitions)){
             if(!def || !['residential','production','culture'].includes(def.type))continue;
             const aliasId=alias(def.name,id);
-            if(!aliasId || seen.has(id))continue;
+            if(seen.has(id))continue;
             const e=effects(def), area=size(def);
             if(!e || !area)continue;
             const raw=def.components?.AllAge?.staticResources?.resources?.resources||{};
             const isQI=Object.keys(raw).some(k=>k.startsWith('guild_raids_')) ||
                 Object.keys(e.yieldPerCycle).some(k=>k.startsWith('guild_raids_'));
             if(!isQI)continue;
+            // The guide vocabulary describes strategic anchors, not a
+            // construction menu whitelist. Metadata-based candidates must
+            // not be excluded merely because their English name is new.
             seen.add(id);
             const buildPrice=moneyCost(def);
             const shortages={}, grossShortages={};
@@ -226,7 +229,7 @@
                 (quality+strategicWeight)/area;
             if(points<=0)continue;
             results.push({
-                kind:'build-candidate', alias:aliasId,
+                kind:'build-candidate', alias:aliasId||'metadata-discovered',
                 // Internal metadata key; use this exact definition for pricing.
                 // Display names are not unique across eras/building variants.
                 definitionId:id, name:String(def.name||id).slice(0,100),
@@ -248,21 +251,25 @@
     function catalogCoverage(definitions) {
         if(!definitions || typeof definitions!=='object')return null;
         let qiCatalogCount=0,priced=0,withYield=0,withFootprint=0;
+        let legacyRecognized=0;
         const categories={residential:0,production:0,culture:0};
         for(const [id,def] of Object.entries(definitions)){
             if(!def || !Object.prototype.hasOwnProperty.call(categories,def.type))continue;
             const e=effects(def);
-            if(!e || !alias(def.name,id))continue;
+            if(!e)continue;
             const raw=def.components?.AllAge?.staticResources?.resources?.resources||{};
             if(!Object.keys(raw).some(k=>k.startsWith('guild_raids_')) &&
                 !Object.keys(e.yieldPerCycle).some(k=>k.startsWith('guild_raids_')))continue;
             qiCatalogCount++;
+            if(alias(def.name,id))legacyRecognized++;
             categories[def.type]++;
             if(moneyCost(def))priced++;
             if(e.yieldKnown)withYield++;
             if(size(def))withFootprint++;
         }
         return {qiCatalogCount,priced,withYield,withFootprint,categories,
+            guideNameRecognized:legacyRecognized,
+            candidateScope:'all QI-marked residential/production/culture metadata; not shop-availability verified',
             pricedRecommendationsPossible:priced>0};
     }
 
