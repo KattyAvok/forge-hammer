@@ -150,3 +150,73 @@ test('unpriced building candidates are not presented as prioritized investments'
     assert.equal(result.recommendations.some(x=>x.code==='build-candidate'),false);
     assert.ok(result.blockers.some(x=>x.includes('stavební ceny QI nejsou ověřené')));
 });
+
+test('live schema: a unique AllAge direct component cost yields spendable QI build costs',()=>{
+    const bakery=def('Bakery','production',-50,0,{guild_raids_supplies:800});
+    bakery.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:42000,guild_raids_supplies:21500,
+        guild_raids_chrono_alloy:125,guild_raids_rope:8
+    }}};
+    const price=advisor.priceEvidence(bakery);
+    assert.equal(price.status,'metadata-candidate');
+    assert.equal(price.source,'components.AllAge.[component].cost.resources');
+    assert.equal(price.cost.guild_raids_money,42000);
+    assert.equal(price.cost.guild_raids_rope,8);
+    const ranked=advisor.rankBuilds({bakery},'donor','supplies',500,1200,{
+        ...stock,guild_raids_rope:7
+    });
+    assert.equal(ranked.length,1);
+    assert.equal(ranked[0].affordable,false);
+    assert.equal(ranked[0].shortages.guild_raids_rope,1);
+});
+
+test('production input cost is never interpreted as building price',()=>{
+    const bakery=def('Bakery','production',-50,0);
+    bakery.components.AllAge.production={options:[{products:[{
+        requirements:{resources:{guild_raids_money:5000,guild_raids_supplies:2500}}
+    }]}]};
+    assert.equal(advisor.moneyCost(bakery),null);
+    assert.equal(advisor.priceEvidence(bakery).status,'unknown');
+});
+
+test('ambiguous and unknown positive cost resources block affordability assertions',()=>{
+    const bakery=def('Bakery','production',-50,0,{guild_raids_supplies:1000});
+    bakery.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:6000,guild_raids_supplies:8000
+    }}};
+    bakery.components.AllAge.purchaseRequirements={cost:{resources:{
+        guild_raids_money:9000,guild_raids_supplies:3000
+    }}};
+    assert.equal(advisor.priceEvidence(bakery).status,'ambiguous');
+    assert.equal(advisor.moneyCost(bakery),null);
+    delete bakery.components.AllAge.purchaseRequirements;
+    bakery.components.AllAge.buildingRequirements.cost.resources.diamonds=10;
+    assert.equal(advisor.moneyCost(bakery),null);
+});
+
+test('missing resource cost stays unknown, not silently zero',()=>{
+    const bakery=def('Bakery','production',-50,0,{guild_raids_supplies:100});
+    bakery.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:9000,guild_raids_supplies:0
+    }}};
+    assert.deepEqual(advisor.moneyCost(bakery),{guild_raids_money:9000});
+    const sample=advisor.priceSamples({bakery});
+    assert.equal(sample.summary.priced,1);
+    assert.equal(sample.samples[0].priceStatus,'metadata-candidate');
+    assert.equal(sample.samples[0].costs.guild_raids_money,9000);
+    assert.equal(sample.samples[0].costs.guild_raids_supplies,undefined);
+});
+
+test('cost samples avoid ids, map coordinates and player data',()=>{
+    const bakery=def('Bakery','production',-50,0,{guild_raids_supplies:500});
+    bakery.components.AllAge.aBuildingPrice={cost:{resources:{
+        guild_raids_money:10000,guild_raids_supplies:6000
+    }}};
+    bakery.player_id=112233;
+    const output=advisor.priceSamples({'secret-entity-id':bakery});
+    const json=JSON.stringify(output);
+    assert.equal(json.includes('112233'),false);
+    assert.equal(json.includes('secret-entity-id'),false);
+    assert.equal(json.includes('aBuildingPrice'),false);
+    assert.equal(output.samples[0].costs.guild_raids_money,10000);
+});
