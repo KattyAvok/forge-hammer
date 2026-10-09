@@ -19,6 +19,20 @@ Day-by-day Fighter and Donor guides are **reference strategies**, not a sequence
 - `QISettlementSupport.Status()` exposes anonymized inferred phase and metadata coverage counts.
 - `QISettlementAdvisor.catalogCoverage(FH.Main.CityEntities)` exposes only aggregate coverage (known prices, productions, footprint) and no raw game or account data.
 
+## 2026-10-09 live price-coverage checkpoint
+User-verified `QISettlementSupport.Status()` in a live difficulty-9 QI city:
+- `running=true`, `hasStock=true`, `hasMap=true`, `mapStale=false`.
+- `autoPhase=advanced` with medium confidence, based only on the presence of Bakery. It is **not** proof that an exact Day 4 or later checklist step is complete.
+- `qiCatalogCount=13`, `withYield=8`, `withFootprint=13`, `priced=0`; breakdown residential 4, production 4, culture 5. **This is the limited set matching known building aliases and current metadata patterns**, not the complete QI building catalog.
+- `priced=0` means the existing parser could not verify a price under the legacy `requirements.cost.resources` path requiring *both* QI money and QI supplies. It does **not** prove that the game lacks prices or that none can be recovered.
+
+**New development-only price-schema discovery**:
+Run `QISettlementSupport.PriceDiscovery()` in the game console, inside the QI settlement, after loading the latest branch. Returns only aggregate structural paths and counts of QI resource token occurrences. It does not emit raw payloads, building IDs, player IDs, account state, cost numbers, or coordinates. It limits traversal depth, object keys, paths, and total nodes to avoid unbounded work.
+
+The goal is to establish whether modern metadata exposes construction prices at another nested path. If `definitionsWithQIPriceTokens` remains zero, the next narrowly scoped investigation is to inspect the **existing build-menu response schema**, still without making new game requests. Only after confirming the path may the optimizer use it to decide `sell -> build -> collect/donate` and compute budget/time feasibility.
+
+**Validation:** 47/47 isolated JS scenarios PASS after adding schema-discovery tests. No new Chrome integration test or full Node CLI run yet.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
@@ -35,7 +49,7 @@ Run in a checked-out working branch:
 node --test tests/qi-settlement-*.test.cjs
 ```
 
-The current five test files passed **45/45 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
+The current five test files passed **47/47 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
 
 After loading the unpacked development extension, enter the QI settlement; read the panel's **Automatická analýza aktuální osady** section and then in the developer console call:
 
