@@ -201,3 +201,48 @@ test('construction attribution does not claim exact match on missing or conflict
             missingDefinitionCount:0,unknownStatCount:0}
     }).exactMatch,false);
 });
+
+test('live before/after: completing buildings activates +150 population and +750 happiness', () => {
+    const before = core.reconcileEconomy(
+        {totalPopulation:1750,availablePopulation:400,euphoria:5300},
+        {guild_raids_total_population:1600,guild_raids_population:250,guild_raids_happiness:4550}
+    );
+    const forecast = core.forecastConstructionCompletion(before,{
+        construction:{count:3,populationProvided:150,populationUsed:120,euphoria:750,
+            missingDefinitionCount:0,unknownStatCount:0}
+    });
+    assert.equal(forecast.status, 'conditional-forecast');
+    assert.equal(forecast.totalPopulation,1750);
+    assert.equal(forecast.availablePopulation,400);
+    assert.equal(forecast.euphoria,5300);
+    assert.equal(forecast.euphoriaFactor,1.5);
+
+    const after = core.reconcileEconomy(
+        {totalPopulation:1750,availablePopulation:400,euphoria:5300},
+        {guild_raids_total_population:1750,guild_raids_population:400,guild_raids_happiness:5300}
+    );
+    assert.equal(after.hasMismatch,false);
+    assert.equal(after.usedPopulationDifference,0);
+    assert.equal(core.forecastConstructionCompletion(after,{
+        producing:{count:2,populationProvided:150,populationUsed:120,euphoria:0,
+            missingDefinitionCount:0,unknownStatCount:0}
+    }),null);
+});
+
+test('construction forecast returns null for incomplete or contradictory states', () => {
+    const comparison = core.reconcileEconomy(
+        {totalPopulation:150,availablePopulation:100,euphoria:300},
+        {guild_raids_total_population:100,guild_raids_population:50,guild_raids_happiness:200}
+    );
+    assert.equal(core.forecastConstructionCompletion(comparison, {
+        construction:{count:1,populationProvided:50,populationUsed:0,euphoria:80,
+            missingDefinitionCount:0,unknownStatCount:0}
+    }),null);
+});
+
+test('difficulty change does not alter the economy or imply a season reset', () => {
+    assert.equal(core.normalizeRun({__class__:'GuildRaidsRunningState',
+        raidInstance:{difficultyLevel:8}}).status,'running');
+    assert.equal(core.normalizeRun({__class__:'GuildRaidsRunningState',
+        raidInstance:{difficultyLevel:9}}).status,'running');
+});
