@@ -73,3 +73,25 @@ test('empty but fresh state remains no-candidate rather than false PASS',()=>{
  assert.equal(result.status,'no-candidate-plan');
  assert.equal(result.readyForManualComparison,false);
 });
+
+test('every paid QI good, including Rope, must reconcile after a plan',()=>{
+ const p=validPlan();
+ p.steps[1].cost.guild_raids_rope=20;
+ p.spent.guild_raids_rope=20;
+ p.remaining.guild_raids_rope=10;
+ const withRope={...stock,guild_raids_rope:30};
+ assert.equal(run([p],{stock:withRope}).status,'internally-consistent');
+ p.remaining.guild_raids_rope=11;
+ const broken=run([p],{stock:withRope});
+ assert.equal(broken.status,'inconsistent-model');
+ assert.ok(broken.findings.includes('plan-budget-not-conserved'));
+});
+test('missing stock for a paid QI good fails instead of assuming cost-free construction',()=>{
+ const p=validPlan();
+ p.steps[1].cost.guild_raids_rope=20;
+ p.spent.guild_raids_rope=20;
+ p.remaining.guild_raids_rope=0;
+ const report=run([p]);
+ assert.equal(report.status,'inconsistent-model');
+ assert.ok(report.findings.includes('required-plan-balance-missing'));
+});
