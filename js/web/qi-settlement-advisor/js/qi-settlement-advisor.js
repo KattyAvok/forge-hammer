@@ -447,7 +447,7 @@
             result.blockers.push('Návrhy konkrétních staveb byly potlačeny: aktuální stavební ceny QI nejsou ověřené.');
         for(const candidate of priced.slice(0,3)){
             const costText=candidate.cost?
-                'Cena z metadat: '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
+                'Cena z metadat (zatím neověřena v nabídce): '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
                 'Stavební cena zatím nebyla v herních metadatech ověřena.';
             add('build-candidate',35,'Kandidát výstavby: '+candidate.name,
                 'Návrh podle ekonomického přínosu na pole; '+costText,
