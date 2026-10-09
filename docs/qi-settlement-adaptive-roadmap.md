@@ -35,7 +35,7 @@ Run in a checked-out working branch:
 node --test tests/qi-settlement-*.test.cjs
 ```
 
-The current five test files passed **44/44 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
+The current five test files passed **45/45 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
 
 After loading the unpacked development extension, enter the QI settlement; read the panel's **Automatická analýza aktuální osady** section and then in the developer console call:
 
