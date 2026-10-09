@@ -565,3 +565,50 @@ test('one compact report includes protected near-collection advice without leaki
         assert.equal(output.includes('"'+forbidden+'"'),false);
     }
 });
+
+test('live-style synthetic QI city accepts one concise consistency report without source IDs',()=>{
+    const t=setup();
+    t.FH.ActiveMap='guild_raids';
+    t.FH.Main.CityEntities.bakery={
+        name:'Bakery',type:'production',components:{AllAge:{
+            placement:{size:{x:2,y:2}},
+            staticResources:{resources:{resources:{guild_raids_population:-30}}},
+            production:{options:[{time:3600,products:[{
+                playerResources:{resources:{guild_raids_supplies:2000}}
+            }]}]},
+            constructionCost:{cost:{resources:{
+                guild_raids_money:84000,guild_raids_supplies:100000,
+                guild_raids_chrono_alloy:1000
+            }}}
+        }}
+    };
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:2000000000,
+        raidInstance:{difficultyLevel:9}
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:198765,
+        guild_raids_supplies:215432,
+        guild_raids_chrono_alloy:3210,
+        guild_raids_population:300,guild_raids_total_population:1000,
+        guild_raids_happiness:2200
+    }});
+    t.send('CityMapService','getCityMap',{
+        gridId:'guild_raids',
+        unlocked_areas:[{x:510,y:520,width:6,length:6}],
+        entities:[]
+    });
+    const verification=t.api.VerifyPlans();
+    assert.equal(verification.status,'internally-consistent');
+    assert.equal(verification.checkedPlans>0,true);
+    assert.equal(verification.findings.length,0);
+    assert.equal(verification.actualGameplayActionsVerified,false);
+    const shared=JSON.parse(t.api.ShareReport());
+    assert.equal(shared.consistency.status,'internally-consistent');
+    assert.equal(shared.consistency.readyForManualComparison,true);
+    assert.equal(shared.consistency.actualGameplayActionsVerified,false);
+    assert.equal(shared.nodeBudget.safeDonation,null);
+    const contents=JSON.stringify(shared);
+    assert.equal(contents.includes('198765'),false);
+    assert.equal(contents.includes('215432'),false);
+});
