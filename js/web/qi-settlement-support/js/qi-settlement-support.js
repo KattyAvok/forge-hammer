@@ -304,6 +304,9 @@
                 return {
                     status:p.status,planCount:p.plans.length,
                     inspectedOriginalBuildings:p.inspectedOriginalBuildings,
+                    doubleSalePairsInspected:p.doubleSalePairsInspected,
+                    returnedDoubleSalePlans:p.plans.filter(plan=>
+                        plan.steps.filter(step=>step.type==='sell').length===2).length,
                     skippedBusySaleCandidates:p.skippedBusySaleCandidates,
                     jointFootprintFitPlans:p.plans.filter(plan=>
                         plan.placementEvidence==='geometry-sequence-fit').length,
