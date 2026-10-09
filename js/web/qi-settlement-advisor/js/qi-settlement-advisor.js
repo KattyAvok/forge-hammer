@@ -172,20 +172,31 @@
             if(!isQI)continue;
             seen.add(id);
             const buildPrice=moneyCost(def);
-            const shortages={};
+            const shortages={}, grossShortages={};
             let affordable=buildPrice!==null?true:null;
-            if(affordable) {
+            let grossAffordable=buildPrice!==null?true:null;
+            if(buildPrice) {
                 for(const [key,needed] of Object.entries(buildPrice)){
                     const held=stock?.[key];
+                    if(!qty(held)){
+                        grossAffordable=null;
+                        affordable=null;
+                        continue;
+                    }
+                    if(held<needed){
+                        grossShortages[key]=needed-held;
+                        grossAffordable=false;
+                    }
                     const reserved=Object.prototype.hasOwnProperty.call(reserves||{},key)
                         ? reserves[key] : 0;
-                    if(!qty(held)||!qty(reserved)){
-                        affordable=null;continue;
+                    if(!qty(reserved)){
+                        affordable=null;
+                        continue;
                     }
                     const afterBuffer=Math.max(0,held-reserved);
                     if(afterBuffer<needed){
                         shortages[key]=needed-afterBuffer;
-                        affordable=false;
+                        if(affordable!==null) affordable=false;
                     }
                 }
             }
@@ -219,7 +230,7 @@
                 area, populationDelta:e.population, euphoriaDelta:e.euphoria,
                 cycleYield:e.yieldPerCycle, qaCollection, qaCapacity, cost:buildPrice,
                 priceStatus:priceEvidence(def).status,
-                affordable, populationOK, shortages,
+                affordable, grossAffordable, populationOK, shortages, grossShortages,
                 verifiedAvailability:false, verifiedLayout:false,
                 score:points
             });
@@ -463,6 +474,8 @@
             .map(candidate=>({
                 name:candidate.name,
                 shortage:{...candidate.shortages},
+                grossShortage:{...candidate.grossShortages},
+                grossAffordable:candidate.grossAffordable,
                 financialStatus:candidate.affordable,
                 populationOK:candidate.populationOK
             }));
