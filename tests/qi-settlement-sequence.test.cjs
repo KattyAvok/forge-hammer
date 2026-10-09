@@ -263,3 +263,16 @@ test('unaffordable top-ranked buildings do not displace cheaper valid planning o
     assert.ok(r.plans.some(p=>p.steps.some(s=>s.building==='Printer')));
     assert.equal(r.plans.some(p=>p.steps.some(s=>s.building.startsWith('High-yield QI'))),false);
 });
+
+test('Rope consumed by construction remains visible in total plan balances',()=>{
+    const ropePrinter=def('QI Rope Printer','production',-20,0,
+        {[M]:10000,[S]:10000,guild_raids_rope:20},{[S]:4000});
+    const stock={...inventory,guild_raids_rope:30};
+    const result=seq.explore({stock,entities:[],definitions:{ropePrinter},
+        profile:'donor'});
+    const plan=result.plans.find(p=>p.steps.some(x=>x.building==='QI Rope Printer'));
+    assert.ok(plan);
+    assert.equal(plan.spent.guild_raids_rope,20);
+    assert.equal(plan.remaining.guild_raids_rope,10);
+    assert.equal(plan.executable,false);
+});
