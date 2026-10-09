@@ -11,6 +11,7 @@
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     let contracts = globalThis.QISettlementContracts.create();
+    let nodeCandidates = null;
     const state = {
         running: false,
         difficulty: null,
@@ -69,6 +70,7 @@
 
     function resetRun() {
         contracts = globalThis.QISettlementContracts.create();
+        nodeCandidates = null;
         state.stock = null;
         state.lastSource = null;
         resetMap();
@@ -127,6 +129,23 @@
             // player/world identifiers and full game responses.
             profile:prefs.profile
         };
+    }
+
+    function nodeBudgetCoverage() {
+        const prefs=settings(),reserves={};
+        if(prefs.profile==='donor') {
+            const raw=readReserves(prefs);
+            for(const [k,value] of Object.entries(raw))
+                if(valid(value))reserves[k]=value;
+            const planning=sequencePreview();
+            const envelope=planning?.plans?.length?
+                globalThis.QISettlementDonationBudget.budget({
+                    stock:state.stock,plans:planning.plans,manualReserves:reserves
+                }):null;
+            for(const [k,entry] of Object.entries(envelope?.investmentBuffer||{}))
+                if(valid(entry.protectedTotal))reserves[k]=entry.protectedTotal;
+        }
+        return globalThis.QISettlementNodeBudget.evaluate(nodeCandidates,state.stock,reserves);
     }
 
     function diagnosticReport() {
@@ -214,6 +233,7 @@
                 phase:phase?.code??null,
                 hoursRemainingFromRunTimestamp:hoursRemaining},
             scenario:current,
+            nodeBudget:complete?nodeBudgetCoverage():{status:'missing-or-stale-state',safeDonation:null},
             geometry:geom,
             placementCandidates:placements,
             metadata:{
@@ -256,6 +276,7 @@
             !paths.some(y=>y.event===x.event&&y.path===x.path))paths.push(x);
         return JSON.stringify({
             build:full.build,state:full.state,scenario:full.scenario,
+            nodeBudget:full.nodeBudget,
             geometry:full.geometry,
             placementCandidates:full.placementCandidates.slice(0,6),
             catalog:full.metadata.catalogCoverage,
@@ -806,6 +827,7 @@
     });
     FH.proxy.addHandler('GuildRaidsMapService','getOverview',data=>{
         contracts.observe('qi-map-overview',data?.responseData);
+        nodeCandidates=globalThis.QISettlementNodeBudget.extract(data?.responseData);
     });
     FH.proxy.addHandler('ArmyUnitManagementService','getArmyInfo',data=>{
         if(FH.ActiveMap==='guild_raids')
