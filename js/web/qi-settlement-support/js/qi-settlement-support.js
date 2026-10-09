@@ -89,7 +89,7 @@
             entities:state.map.entities,
             definitions:FH.Main?.CityEntities,
             unlockedAreaCount:state.map.summary?.unlockedAreaCount,
-            reserves:readReserves(prefs)
+            reserves:profile==='donor'?readReserves(prefs):{}
         });
         state.advisorCache={key,value:result};
         return result;
@@ -165,6 +165,14 @@
                 recList.append(item);
             }
             panel.append(recList);
+            if(decision.blockedBuilds?.length) {
+                const blocked=decision.blockedBuilds.filter(b=>
+                    b.financialStatus===false || b.populationOK===false);
+                if(blocked.length)
+                    panel.append(hint('Nedostupné kvůli zdrojům či populaci: '+
+                        blocked.slice(0,3).map(b=>b.name).join(', ')+
+                        '. Podrobné schodky jsou níže.'));
+            }
             if(decision.recommendations.length===0)
                 panel.append(hint('Žádné bezpečně odvoditelné doporučení. Chybí ověřené ceny nebo omezení.'));
             if(decision.blockers.length)
@@ -190,7 +198,7 @@
             });
             const scenarioList=$('<ol class="qi-support-scenarios"/>');
             for(const q of scenarios.builds.slice(0,4)){
-                const title='Postavit: '+q.name;
+                const title='Finančně dostupná varianta: '+q.name;
                 const result=q.financiallyCovered===null?'Cena nebo zásoba neznámá':
                     q.financiallyCovered?'Finančně kryto':'Nedostatek zdrojů';
                 const entry=$('<li/>').append($('<strong/>').text(title+' — '+result));
@@ -232,8 +240,23 @@
                 scenarioList.append(entry);
             }
             panel.append(scenarioList);
+            if(scenarios.blockedBuilds?.length) {
+                panel.append($('<h4/>').text('Finančně nebo populačně nedostupné stavby'));
+                const blocked=$('<ul class="qi-support-blocked"/>');
+                for(const q of scenarios.blockedBuilds.slice(0,5)) {
+                    const missing=Object.entries(q.shortages||{})
+                        .map(([k,v])=>k.replace('guild_raids_','')+': '+numberText(v))
+                        .join(', ');
+                    const why=q.financiallyCovered===null ? 'neznámá cena nebo zásoba' :
+                        !q.financiallyCovered ? (missing ? 'chybí '+missing : 'nedostatek prostředků') :
+                        'nedostatečná populace';
+                    blocked.append($('<li/>').text(q.name+' — '+why));
+                }
+                panel.append(blocked);
+                panel.append(hint('Tyto stavby nejsou návrhy k okamžité výstavbě.'));
+            }
             if(!scenarios.builds.length && !scenarios.replacements.length)
-                panel.append(hint('Z dostupných cen a definic nelze navrhnout ani předběžnou variantu.'));
+                panel.append(hint('Žádná prověřovaná varianta nesplňuje současná finanční a populační omezení.'));
             panel.append(hint('POZOR: Jde o rozpočtovou simulaci, ne optimalizované pořadí akcí. Nabídka, prostor, cesty, délka výstavby a zbývající QI čas nejsou zatím ověřené.'));
         }
 
