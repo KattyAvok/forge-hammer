@@ -98,7 +98,7 @@
     }
 
     function scenarioStatus() {
-        if (!state.running || state.mapStale || !state.map?.entities || !state.stock)
+        if (FH.ActiveMap!=='guild_raids' || !state.running || state.mapStale || !state.map?.entities || !state.stock)
             return {status:'missing-or-stale-state'};
         const prefs=settings();
         const selected={};
@@ -653,7 +653,7 @@
                 (settings().reserveMoney!=='' && settings().reserveSupplies!=='' ?
                     'manual-protected' : 'gross-only') : 'not-applicable',
             selectedStage:settings().stage,
-            autoPhase:(!state.mapStale && state.map?.entities)?
+            autoPhase:(FH.ActiveMap==='guild_raids' && !state.mapStale && state.map?.entities)?
                 globalThis.QISettlementAdvisor.inferPhase(
                     globalThis.QISettlementAdvisor.features(state.map.entities,FH.Main?.CityEntities),
                     state.map.summary?.unlockedAreaCount
