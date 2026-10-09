@@ -280,6 +280,21 @@
         return JSON.stringify({
             build:full.build,state:full.state,scenario:full.scenario,
             productionReadiness:full.productionReadiness,
+            productionOpportunities:(()=>{
+                const p=productionOpportunity();
+                return p?{
+                    status:p.status,counts:p.counts,
+                    nearestTransitionMinutes:p.nearestTransitionMinutes,
+                    heldSaleCandidates:p.counts.producing+p.counts.completed,
+                    opportunities:p.opportunities.slice(0,4).map(x=>({
+                        building:x.building,phase:x.phase,
+                        remainingMinutes:x.remainingMinutes,
+                        review:x.recommendedReview,
+                        collectibleVerified:false
+                    })),
+                    collectedResourcesCredited:false
+                }:null;
+            })(),
             nodeBudget:full.nodeBudget,
             geometry:full.geometry,
             placementCandidates:full.placementCandidates.slice(0,6),
@@ -357,6 +372,20 @@
         if(typeof end!=='number'||end<=1000000000||end>=9999999999)
             return null;
         return Math.max(0,(end*1000-Date.now())/3600000);
+    }
+
+    function productionOpportunity() {
+        if(FH.ActiveMap!=='guild_raids'||!state.running||
+            state.mapStale||!state.map?.entities||!state.stock)
+            return null;
+        const sums=typeof Boosts!=='undefined'?Boosts.Sums||{}:{};
+        return globalThis.QISettlementOpportunity.assess({
+            entities:state.map.entities,
+            definitions:FH.Main?.CityEntities,
+            stock:state.stock,
+            boosts:sums,
+            horizonHours:remainingHours()
+        });
     }
 
     function sequencePreview() {
@@ -720,6 +749,27 @@
             valid(observed.euphoriaFactor) ? observed.euphoriaFactor.toLocaleString('cs-CZ') + '×' : 'nezjištěno'));
 
         panel.append(section('Výroba a nejbližší sběr'));
+        const collection=productionOpportunity();
+        if(collection?.opportunities?.length) {
+            const pending=collection.opportunities.filter(x=>
+                x.phase==='completed-state').length;
+            if(pending)
+                panel.append(hint('Než budeš tyto budovy prodávat, ověř sběr u '+
+                    numberText(pending)+' budov ve stavu dokončené produkce.'));
+            const listed=collection.opportunities.slice(0,3);
+            for(const item of listed) {
+                const notice=item.phase==='completed-state'?
+                    'Dokončená produkce; nejprve ověř možnost sběru.' :
+                    item.remainingMinutes!==null&&item.remainingMinutes<=180?
+                    'Přechod přibližně za '+numberText(item.remainingMinutes)+
+                        ' min; s prodejem zatím počkej.' :
+                    'Probíhá produkce; její ztrátu zatím neumíme ocenit.';
+                panel.append(hint(item.building+': '+notice));
+            }
+            if(collection.omittedOpportunities)
+                panel.append(hint('Dalších '+numberText(collection.omittedOpportunities)+
+                    ' produkčních stavů není ve zkráceném přehledu.'));
+        }
         if(!state.mapStale && state.map?.entities) {
             const summary=globalThis.QISettlementReadiness.summarize(state.map.entities);
             panel.append(row('Právě běžící výroby',numberText(summary.active)));
