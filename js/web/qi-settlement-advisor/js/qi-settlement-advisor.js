@@ -211,12 +211,12 @@
             const qaCapacity=e.bonuses
                 .filter(b=>b.type.includes('action_points_capacity'))
                 .reduce((n,b)=>n+b.value,0);
-            const quality =
+            const quality = profile==='donor' ?
+                (e.yieldPerCycle.guild_raids_money||0)+
+                (e.yieldPerCycle.guild_raids_supplies||0) :
                 focusName==='supplies' ? e.yieldPerCycle.guild_raids_supplies||0 :
                 focusName==='money' ? e.yieldPerCycle.guild_raids_money||0 :
                 focusName==='chrono_alloy' ? e.yieldPerCycle.guild_raids_chrono_alloy||0 :
-                profile==='donor' ? (e.yieldPerCycle.guild_raids_money||0)+
-                    (e.yieldPerCycle.guild_raids_supplies||0) :
                 (e.yieldPerCycle.guild_raids_chrono_alloy||0)*20;
             const strategicWeight=(profile==='donor'?qaCollection*5+qaCapacity/100 :
                 qaCollection*2+qaCapacity/200);
