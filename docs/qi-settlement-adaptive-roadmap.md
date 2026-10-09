@@ -289,6 +289,78 @@ Acceptance after loading a fresh unpacked build: enter QI, check
 If it still disagrees with upper coverage, run and share the sanitized
 `QISettlementSupport.ScenarioStatus()` report.
 
+## 2026-10-09 bundled milestone 1.8.1.8 — one console report
+
+Per user request, stop requesting interactive screenshot checks for each
+small change. Prepare feature batches, verify with automated tests, then
+request **one consolidated JSON output from DevTools** only at meaningful
+integration gates. Do not ask for screenshots unless a UI-specific defect
+requires visual proof.
+
+### Delivered in this batch
+1. `qi-settlement-geometry`: pure, bounded rectangle/occupancy analysis
+   using existing QI `getCityMap.unlocked_areas`, current entities, and
+   in-game entity placement dimensions. Returns known/unknown free-grid
+   estimates and rough main-building-connected-road adjacency. **Does not
+   prove shop unlock, roads of required level, rock/obstruction clearance,
+   or game-accepted placement.** Missing footprints, inconsistent map
+   rectangles, overlaps and out-of-area buildings fail closed.
+2. `qi-settlement-production`: distinguishes production inputs from
+   output resources, checks option counts and possible production-time
+   field paths in the live building catalog. Reads allowlisted QI bonus
+   values already calculated by `Boosts.Sums` when available.
+   **Time units and real ROI remain unverified.**
+3. `qi-settlement-contracts`: passive, in-memory, bounded structural
+   path fingerprint for existing `GuildRaidsMapService.getOverview`,
+   `GuildRaidsService.getState`, and QI-context
+   `ArmyUnitManagementService.getArmyInfo` responses. Reports only
+   schema names/occurrences, never raw responses, player IDs,
+   map coordinates or current resource amounts.
+4. The existing support UI now collects rectangular area evidence with
+   its map snapshot, displays **geometrically unoccupied** tile counts
+   only as an approximation, and exposes one combined report command:
+   `QISettlementSupport.ReportToConsole()`.
+5. `ReportToConsole()` prints a single pretty JSON report with current
+   phase, anonymized scenario counts, missing data keys, aggregate
+   geometry and road evidence, up to 12 shortlisted building footprint
+   statuses, production metadata coverage, QI boosts, passive node/unit
+   schema paths, remaining-run-hour estimate when timestamp semantics
+   permit, and explicit unresolved validation gates.
+6. The report refuses to treat previous QI evidence as current when
+   the user has left the QI map or when a map is dirty/stale.
+7. New GitHub Actions workflow runs
+   `node --test tests/qi-settlement-*.test.cjs` once per PR update.
+
+### Verification
+- **90/90 native Node.js tests passed** in GitHub Actions
+  [QI checks (successful run)](https://github.com/KattyAvok/forge-hammer/actions/runs/37918130986).
+- Before enabling native CI we observed a genuine CommonJS loader failure
+  in the simulator: browser global `QISettlementAdvisor` was undefined
+  in isolated Node.js. Fixed with a guarded explicit CommonJS
+  `require()` fallback; this is why native CI is valuable.
+- Individual checks cover incomplete geometry, road connectivity,
+  unknown production time, private-field redaction,
+  combined console report, stale-map safety, reserve and
+  budget constraints, and existing Fighter/Donor contracts.
+- **1.8.1.8 is not yet acceptance-tested in Chrome.**
+
+### One requested integration check
+After installing the latest development branch and refreshing the FoE
+page, enter a QI settlement and open DevTools once. Run:
+
+```js
+QISettlementSupport.ReportToConsole()
+```
+
+Share the single emitted **JSON object** (no screenshots and no separate
+Status, PriceDiscovery or CostSamples commands). It intentionally excludes
+player resource balances, player or guild IDs and city coordinates. Verify
+that any fields you share are acceptable to disclose.
+
+Do **not** ask for a new manual test after a mere one-file fix.
+The next handoff should occur only after model-level changes that
+meaningfully expand candidate feasibility or planning quality.
+
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
 - Fully verified construction-price schema in modern QI entity metadata and current QI build-menu availability.
