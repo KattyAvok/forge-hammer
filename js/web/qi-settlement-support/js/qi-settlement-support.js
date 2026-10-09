@@ -657,6 +657,7 @@
     globalThis.QISettlementSupport = Object.freeze({
         Show: show,
         ScenarioStatus: scenarioStatus,
+        ShareReport() { return sharingReport(); },
         ReportToConsole() {
             const report=diagnosticReport();
             console.log('QI Settlement Support - combined diagnostic '+BUILD);
