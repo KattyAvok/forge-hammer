@@ -295,3 +295,27 @@ test('Donor without reserves distinguishes gross shortage from protected unknown
     assert.equal(decision.blockedBuilds.find(x=>x.name==='Clapboard House')
         .grossShortage.guild_raids_money,110000);
 });
+
+test('QI metadata building absent from historical guide is still considered',()=>{
+    const novel=def('Invented Workshop','production',-30,0,
+        {guild_raids_supplies:1400});
+    novel.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:1000,guild_raids_supplies:500
+    }}};
+    const ranked=advisor.rankBuilds({novel},'donor','supplies',1000,2500,
+        stock,{});
+    assert.equal(ranked.length,1);
+    assert.equal(ranked[0].alias,'metadata-discovered');
+    assert.equal(ranked[0].affordable,true);
+    const coverage=advisor.catalogCoverage({novel});
+    assert.equal(coverage.qiCatalogCount,1);
+    assert.equal(coverage.guideNameRecognized,0);
+    assert.equal(coverage.priced,1);
+});
+test('main-city metadata with only ordinary resource fields is not QI proposal',()=>{
+    const generic=def('Invented Workshop','production',-30,0,{supplies:1000});
+    generic.components.AllAge.buildingRequirements={cost:{resources:{
+        guild_raids_money:2000,guild_raids_supplies:200
+    }}};
+    assert.equal(advisor.rankBuilds({generic},'donor','supplies',1000,2500,stock).length,0);
+});
