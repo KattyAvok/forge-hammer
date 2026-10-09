@@ -107,3 +107,44 @@ test('geometry mismatch summarizes outside buildings without revealing coordinat
         assert.equal(json.includes(privateCoord),false);
     assert.equal(geometry.probeFit(index,def(2,2)).status,'unknown');
 });
+
+test('out-of-map impediments do not invalidate the player building footprint',()=>{
+    const defs={house:def(2,2,'residential'),
+        impediment:def(1,2,'impediment'),
+        beyond:def(2,1,'off_grid')};
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:4}],
+        [{cityentity_id:'house',x:0,y:0},
+         {cityentity_id:'impediment',x:10,y:10},
+         {cityentity_id:'beyond',x:12,y:10}],defs);
+    assert.equal(idx.status,'geometry-indexed');
+    const summary=geometry.summarize(idx);
+    assert.equal(summary.occupiedTiles,4);
+    assert.equal(summary.freeTiles,12);
+    assert.equal(summary.ignoredOutsideObstacles,1);
+    assert.equal(summary.ignoredOutsideOffGrid,1);
+    assert.equal(summary.skippedOutsideTiles,4);
+});
+test('impediment inside the city still occupies buildable tile space',()=>{
+    const defs={impediment:def(1,2,'impediment')};
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:4}],
+        [{cityentity_id:'impediment',x:1,y:1}],defs);
+    assert.equal(idx.status,'geometry-indexed');
+    assert.equal(geometry.summarize(idx).freeTiles,14);
+});
+test('an ordinary building outside unlocked land remains a hard blocker',()=>{
+    const defs={home:def(1,2,'residential'),obstacle:def(1,1,'impediment')};
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:4}],
+        [{cityentity_id:'obstacle',x:9,y:9},
+         {cityentity_id:'home',x:7,y:7}],defs);
+    assert.equal(idx.status,'insufficient-evidence');
+    assert.equal(idx.reason,'buildings-outside-unlocked-areas');
+    assert.equal(idx.outsideGroups.other,1);
+});
+test('partly outside impediment blocks only tiles within unlocked land',()=>{
+    const defs={obstacle:def(2,1,'impediment')};
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:4}],
+        [{cityentity_id:'obstacle',x:3,y:2}],defs);
+    assert.equal(idx.status,'geometry-indexed');
+    assert.equal(geometry.summarize(idx).occupiedTiles,1);
+    assert.equal(geometry.summarize(idx).skippedOutsideTiles,1);
+});
