@@ -7,6 +7,11 @@
  */
 (function(root) {
     'use strict';
+    // Browser modules share QISettlementAdvisor through globalThis; native
+    // Node.js tests need an explicit CommonJS dependency.
+    const advisor=root.QISettlementAdvisor ||
+        (typeof module==='object' && module.exports && typeof require==='function'
+            ? require('../../qi-settlement-advisor/js/qi-settlement-advisor.js') : null);
     const money='guild_raids_money', supplies='guild_raids_supplies',
         alloy='guild_raids_chrono_alloy', pop='guild_raids_population',
         total='guild_raids_total_population', happy='guild_raids_happiness';
@@ -15,7 +20,6 @@
     const safeCopy=x=>x&&typeof x==='object'&&!Array.isArray(x)?{...x}:{};
 
     function quoteBuild({stock,definition,reserves={}}={}) {
-        const advisor=root.QISettlementAdvisor;
         const evidence=advisor.priceEvidence(definition);
         const effect=advisor.effects(definition);
         const missing=[], shortages={}, remaining={};
@@ -64,7 +68,6 @@
     }
 
     function quoteReplacement({stock,removed,added,reserves={}}={}) {
-        const advisor=root.QISettlementAdvisor;
         const del=advisor.effects(removed),put=advisor.effects(added);
         if(!del||!put||!allValid(stock?.[pop],stock?.[total],stock?.[happy]))
             return {kind:'replace',actionable:false,modeledConstraintsPass:false,
@@ -105,7 +108,6 @@
 
     function explore({stock,entities,definitions,profile='fighter',reserves={},
         maxCandidates=5,maxPairs=6}={}) {
-        const advisor=root.QISettlementAdvisor;
         if(!stock||!Array.isArray(entities)||!definitions)
             return {status:'missing-state',builds:[],provisionalBuilds:[],blockedBuilds:[],replacements:[],blockers:['Chybí aktuální mapa nebo sklad.']};
         const catalog=advisor.rankBuilds(definitions,profile,
