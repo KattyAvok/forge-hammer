@@ -161,3 +161,53 @@ test('unaffordable Clapboard stays in blocked builds with deficit, Bakery remain
     assert.ok(result.builds.some(x=>x.name==='Bakery'));
     assert.ok(result.builds.every(x=>x.modeledConstraintsPass===true));
 });
+
+
+test('duplicate display names cannot redirect pricing to a non-QI metadata variant',()=>{
+    const legacy={name:'Bakery',type:'production',
+        components:{AllAge:{placement:{size:{x:3,y:3}},
+            staticResources:{resources:{resources:{population:-20}}},
+            production:{options:[{products:[{
+                playerResources:{resources:{supplies:100}}
+            }]}]}}}};
+    const bakery=def('Bakery',{
+        guild_raids_money:84000,guild_raids_supplies:100000,
+        guild_raids_chrono_alloy:1000
+    },-30,0);
+    bakery.components.AllAge.production={options:[{products:[{
+        playerResources:{resources:{guild_raids_supplies:500}}
+    }]}]};
+    const result=simulator.explore({stock,entities:[{cityentity_id:'bakery_qi'}],
+        definitions:{old_bakery:legacy,bakery_qi:bakery},
+        profile:'donor',reserves:{}});
+    assert.equal(result.status,'model-preview');
+    assert.ok(result.builds.some(q=>q.name==='Bakery'));
+    assert.equal(result.builds.find(q=>q.name==='Bakery').cost.guild_raids_money,84000);
+    assert.equal(result.blockedBuilds.some(q=>q.name==='Bakery'),false);
+});
+
+test('financially covered with incomplete population data is provisional, not blocked',()=>{
+    const bakery=def('Bakery',{
+        guild_raids_money:84000,guild_raids_supplies:100000,
+        guild_raids_chrono_alloy:1000
+    },-30,0);
+    bakery.components.AllAge.production={options:[{products:[{
+        playerResources:{resources:{guild_raids_supplies:500}}
+    }]}]};
+    const incomplete={
+        guild_raids_money:100000,
+        guild_raids_supplies:120000,
+        guild_raids_chrono_alloy:2000,
+        guild_raids_population:200
+    };
+    const result=simulator.explore({stock:incomplete,
+        entities:[{cityentity_id:'bakery'}],definitions:{bakery},
+        profile:'donor',reserves:{}});
+    assert.equal(result.builds.some(q=>q.name==='Bakery'),false);
+    const provisional=result.provisionalBuilds.find(q=>q.name==='Bakery');
+    assert.ok(provisional);
+    assert.equal(provisional.financiallyCovered,true);
+    assert.equal(provisional.populationViable,true);
+    assert.ok(provisional.missing.includes('currentPopulationHappiness'));
+    assert.equal(result.blockedBuilds.some(q=>q.name==='Bakery'),false);
+});
