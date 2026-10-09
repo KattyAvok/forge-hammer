@@ -131,3 +131,33 @@ test('all explore candidates remain explicitly non-actionable',()=>{
     assert.ok(result.builds.every(x=>x.actionable===false));
     assert.ok(result.replacements.every(x=>x.actionable===false));
 });
+
+test('unaffordable Clapboard stays in blocked builds with deficit, Bakery remains preferred',()=>{
+    const clapboard=def('Clapboard House',{
+        guild_raids_money:210000,guild_raids_supplies:200000,
+        guild_raids_chrono_alloy:1000
+    },180,0);
+    clapboard.components.AllAge.production={options:[{products:[{
+        playerResources:{resources:{guild_raids_supplies:999}}
+    }]}]};
+    const bakery=def('Bakery',{
+        guild_raids_money:84000,guild_raids_supplies:100000,
+        guild_raids_chrono_alloy:1000
+    },-30,0);
+    bakery.components.AllAge.production={options:[{products:[{
+        playerResources:{resources:{guild_raids_supplies:200}}
+    }]}]};
+    const definitions={clapboard,bakery};
+    const result=simulator.explore({stock,entities:[{cityentity_id:'bakery'}],
+        definitions,profile:'donor',reserves:{
+            guild_raids_money:0,guild_raids_supplies:0
+        }});
+    const cl=result.blockedBuilds.find(x=>x.name==='Clapboard House');
+    assert.ok(cl);
+    assert.equal(cl.financiallyCovered,false);
+    assert.equal(cl.shortages.guild_raids_supplies,50000);
+    assert.equal(cl.actionable,false);
+    assert.equal(result.builds.some(x=>x.name==='Clapboard House'),false);
+    assert.ok(result.builds.some(x=>x.name==='Bakery'));
+    assert.ok(result.builds.every(x=>x.modeledConstraintsPass===true));
+});
