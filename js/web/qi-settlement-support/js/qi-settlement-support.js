@@ -308,6 +308,7 @@
             }:null,
             qiBoosts:full.metadata.qiBoosts,
             productionCycles:full.metadata.productionCycleEstimates.slice(0,6),
+            consistency:verifyCurrentPlans(),
             sequencePreview:(()=>{
                 const p=sequencePreview();
                 if(!p)return null;
@@ -421,6 +422,21 @@
         });
         state.sequenceCache={signature,result};
         return result;
+    }
+
+    function verifyCurrentPlans() {
+        const prefs=settings();
+        const observed=prefs.profile==='donor'?readReserves(prefs):{};
+        const current=sequencePreview();
+        return globalThis.QISettlementVerification.audit({
+            stock:state.stock,
+            plans:current?.plans||null,
+            reserves:observed,
+            geometry:state.map?.layoutIndex,
+            profile:prefs.profile,
+            activeQI:FH.ActiveMap==='guild_raids'&&state.running,
+            fresh:!!state.map&&!state.mapStale
+        });
     }
 
     function render() {
@@ -629,6 +645,16 @@
 
         panel.append(section('Scénáře až dvou investičních rozhodnutí'));
         const sequence=sequencePreview();
+        const check=verifyCurrentPlans();
+        if(check.status==='inconsistent-model')
+            panel.append(hint('Kontrola konzistence modelu zjistila nesoulad: '+
+                check.findings.join(', ')+'. Scénáře nepoužívej k rozhodování.'));
+        else if(check.status==='internally-consistent')
+            panel.append(hint('Interní kontrola '+numberText(check.passedPlans)+
+                ' scénářů prošla. Neznamená to ověřené umístění, ceny QI uzlů ani bezpečné darování.'));
+        else
+            panel.append(hint('Interní ekonomické ověření zatím není úplné: '+
+                check.status+'.'));
         if(!sequence) {
             panel.append(hint('Pro navazující rozhodování chybí aktuální mapa nebo sklad.'));
         } else if(sequence.plans.length===0) {
@@ -986,6 +1012,7 @@
     globalThis.QISettlementSupport = Object.freeze({
         Show: show,
         ScenarioStatus: scenarioStatus,
+        VerifyPlans: verifyCurrentPlans,
         ShareReport() { return sharingReport(); },
         ReportToConsole() {
             const report=diagnosticReport();
