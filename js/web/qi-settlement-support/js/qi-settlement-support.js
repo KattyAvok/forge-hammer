@@ -760,6 +760,8 @@
             for(const item of listed) {
                 const notice=item.phase==='completed-state'?
                     'Dokončená produkce; nejprve ověř možnost sběru.' :
+                    item.recommendedReview==='transition-beyond-observed-qi-end'?
+                    'Přechod produkce nastane až po známém konci QI. Čekání by zde nepomohlo dokončení výroby v tomto běhu.' :
                     item.remainingMinutes!==null&&item.remainingMinutes<=180?
                     'Přechod přibližně za '+numberText(item.remainingMinutes)+
                         ' min; s prodejem zatím počkej.' :
