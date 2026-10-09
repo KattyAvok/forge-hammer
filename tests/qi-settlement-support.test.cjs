@@ -16,7 +16,7 @@ const source = fs.readFileSync(path.join(__dirname,
     '../js/web/qi-settlement-support/js/qi-settlement-support.js'), 'utf8');
 
 function setup() {
-    const store = new Map(), handlers = {}, window = {location:{hostname:'world1.forgeofempires.com'}};
+    const store = new Map(), handlers = {}, logs=[], window = {location:{hostname:'world1.forgeofempires.com'}};
     const FH = {
         World:'world1', Player:{ID:123}, ActiveMap:'main',
         Main:{CityEntities:{}},
@@ -32,11 +32,11 @@ function setup() {
         HTML:{Box:()=>{throw Error('No UI in headless test')},AddCssFile:()=>{},
             CloseOpenBox:()=>{}}
     };
-    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,$:()=>({length:0})};
+    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,console:{log:(...a)=>logs.push(a.join(' '))},$:()=>({length:0})};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     return {
-        FH,store, api:globals.QISettlementSupport,
+        FH,store,logs,api:globals.QISettlementSupport,
         send:(service,method,responseData)=>{
             for(const h of handlers[service]?.[method]||[])h({requestMethod:method,responseData});
             for(const h of handlers[service]?.['all']||[])h({requestMethod:method,responseData});
@@ -356,4 +356,46 @@ test('sanitized scenario diagnostic separates missing happiness from lack of mon
     assert.equal(r.counts.blockedBuilds,0);
     assert.equal(JSON.stringify(r).includes('100000'),false);
     assert.equal(JSON.stringify(r).includes('12345'),false);
+});
+
+test('one console report includes geometry, scenarios and metadata without leaking holdings or ids',()=>{
+    const t=setup();
+    t.FH.ActiveMap='guild_raids';
+    t.FH.Main.CityEntities.house={
+        name:'Estate House',type:'residential',
+        components:{AllAge:{
+            placement:{size:{x:2,y:2}},
+            staticResources:{resources:{resources:{guild_raids_population:100}}}
+        }}
+    };
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:1999999999,
+        raidInstance:{difficultyLevel:9}
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:987654321,
+        guild_raids_supplies:123456789,
+        guild_raids_chrono_alloy:10000,
+        guild_raids_total_population:100,
+        guild_raids_population:100,
+        guild_raids_happiness:200
+    }});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[{id:10101,cityentity_id:'house',x:524,y:525}],
+        unlocked_areas:[{x:524,y:525,width:5,length:5}]
+    });
+    const result=t.api.ReportToConsole();
+    assert.match(result,/report vypsán/i);
+    const data=JSON.parse(t.logs[t.logs.length-1]);
+    assert.equal(data.geometry.status,'geometry-indexed');
+    assert.equal(data.geometry.freeTiles,21);
+    assert.equal(data.scenario.status,'model-preview');
+    assert.equal(data.state.difficulty,9);
+    assert.equal(data.openGates.buildMenuUnlocks,'unverified');
+    const serialized=JSON.stringify(data);
+    assert.equal(serialized.includes('987654321'),false);
+    assert.equal(serialized.includes('123456789'),false);
+    assert.equal(serialized.includes('10101'),false);
+    assert.equal(serialized.includes('524'),false);
+    assert.equal(serialized.includes('525'),false);
 });
