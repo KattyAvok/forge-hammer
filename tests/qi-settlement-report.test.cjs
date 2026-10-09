@@ -23,6 +23,7 @@ test('compact report exposes a parseable one-command JSON string',()=>{
    QISettlementGeometry:moduleOf('geometry'),
    QISettlementProduction:moduleOf('production'),
    QISettlementContracts:moduleOf('contracts'),
+   QISettlementSequence:moduleOf('sequence'),
    console:{log:()=>{}},$:(name)=>({length:0})
  };
  context.globalThis=context;
