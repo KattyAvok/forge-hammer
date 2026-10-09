@@ -294,6 +294,8 @@ test('Donor with no reserves still sees gross budget and missing Clapboard coins
         (object.children||[]).map(x=>typeof x==='string'?x:gather(x)).join(' ');
     const output=gather(body);
     assert.match(output,/orientační rozpočet ze současných zásob/i);
+    assert.match(output,/Predbezne financne kryte stavby ze skladu/);
+    assert.match(output,/Clapboard House \(chybí money: 110/);
     assert.match(output,/Předběžně kryto ze skladu: Bakery/);
     assert.match(output,/Clapboard House — chybí money:/);
     assert.match(output,/Nezadané rezervy se NEPOVAŽUJÍ za nulové/);
