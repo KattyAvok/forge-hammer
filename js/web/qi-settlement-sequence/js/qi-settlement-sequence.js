@@ -154,7 +154,7 @@
             const key=e?.cityentity_id,def=definitions[key],id=e?.id;
             if(!def||!advisor.size(def)||def.type==='street'||
                 def.type==='main_building'||def.type==='impediment'||
-                def.type==='off_grid'||/construct|building/i.test(e?.state?.__class__||''))
+                def.type==='off_grid'||/construct|building|producing|completed/i.test(e?.state?.__class__||''))
                 continue;
             const fx=advisor.effects(def);
             if(!fx||fx.bonuses.some(b=>b.value!==0))continue;
@@ -243,6 +243,13 @@
             floor,minFreePopulation:stock[available],minEuphoriaFactor:floor,
             increments:{},qa:{},totalCosts:{},steps:[],usedOriginals:new Set()};
         const buildingOptions=candidateDefinitions(definitions,profile,stock,boosts);
+        // Productive and completed productions are deliberately excluded
+        // from sale: we cannot price the uncollected production loss.
+        const busySaleBuildings=entities.filter(e=>
+            /ProducingState|CompletedState/i.test(String(e?.state?.__class__||''))&&
+            definitions[e?.cityentity_id] &&
+            !['street','main_building','impediment','off_grid']
+                .includes(definitions[e.cityentity_id].type)).length;
         const sellers=candidatesForSelling(entities,definitions,geometryIndex);
         const all=[],first=[];
         for(const build of buildingOptions) {
@@ -305,6 +312,7 @@
             profile,sequenceDepth:depth,
             candidateDefinitions:buildingOptions.length,
             inspectedOriginalBuildings:sellers.length,
+            skippedBusySaleCandidates:busySaleBuildings,
             consideredVariants:first.length+all.length,
             plans:top,
             reserveMode:profile!=='donor'?'not-applicable':
@@ -317,6 +325,7 @@
                 'two-building-fit-does-not-verify-roads-unlocks-or-build-order',
                 'node-costs-unverified','future-production-not-spent',
                 'existing-production-euphoria-rebalance-unmodeled',
+                'uncollected-producing-or-completed-buildings-protected-from-sale',
                 'donation-not-safe-without-plan-and-node'
             ],
             gameActionsPerformed:false};
