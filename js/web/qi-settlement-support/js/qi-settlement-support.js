@@ -541,7 +541,7 @@
                     'Minimum volné populace během kroků: '+
                     numberText(plan.minFreePopulation)+
                     ' · euforie nejméně '+plan.minEuphoriaFactor.toLocaleString('cs-CZ')+'×'));
-                if(prefs.profile==='donor' &&
+                if(preferences.profile==='donor' &&
                     plan.donorUnallocatedAfterManualReserve) {
                     const remain=Object.entries(plan.donorUnallocatedAfterManualReserve)
                         .map(([key,value])=>key.replace('guild_raids_','')+
