@@ -14,6 +14,7 @@ const geometry = require('../js/web/qi-settlement-geometry/js/qi-settlement-geom
 const production = require('../js/web/qi-settlement-production/js/qi-settlement-production.js');
 const contracts = require('../js/web/qi-settlement-contracts/js/qi-settlement-contracts.js');
 const sequence = require('../js/web/qi-settlement-sequence/js/qi-settlement-sequence.js');
+const timing = require('../js/web/qi-settlement-timing/js/qi-settlement-timing.js');
 const source = fs.readFileSync(path.join(__dirname,
     '../js/web/qi-settlement-support/js/qi-settlement-support.js'), 'utf8');
 
@@ -34,7 +35,7 @@ function setup() {
         HTML:{Box:()=>{throw Error('No UI in headless test')},AddCssFile:()=>{},
             CloseOpenBox:()=>{}}
     };
-    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,QISettlementContracts:contracts,QISettlementSequence:sequence,console:{log:(...a)=>logs.push(a.join(' '))},$:()=>({length:0})};
+    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,QISettlementContracts:contracts,QISettlementSequence:sequence,QISettlementTiming:timing,console:{log:(...a)=>logs.push(a.join(' '))},$:()=>({length:0})};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     return {
@@ -164,7 +165,7 @@ test('visible QI panel renders selected guide, observed stock and donor reserves
     store.set('QISettlementSupportSettingsV1_world1_123',
         JSON.stringify({profile:'donor',stage:'day4b',reserveMoney:'500',reserveSupplies:'100'}));
     const globals={FH,window:{location:{hostname:'world1.forgeofempires.com'}},
-        QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,QISettlementContracts:contracts,QISettlementSequence:sequence,$};
+        QISettlementCore:core,QISettlementStrategies:strategies,QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,QISettlementContracts:contracts,QISettlementSequence:sequence,QISettlementTiming:timing,$};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     const send=(service,method,responseData)=>{
@@ -279,7 +280,7 @@ test('Donor with no reserves still sees gross budget and missing Clapboard coins
         JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'',reserveSupplies:''}));
     const context={FH,window:{location:{hostname:'world2.forgeofempires.com'}},
         QISettlementCore:core,QISettlementStrategies:strategies,
-        QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,QISettlementContracts:contracts,QISettlementSequence:sequence,$};
+        QISettlementAdvisor:advisor,QISettlementSimulator:simulator,QISettlementGeometry:geometry,QISettlementProduction:production,QISettlementContracts:contracts,QISettlementSequence:sequence,QISettlementTiming:timing,$};
     context.globalThis=context;
     vm.runInNewContext(source,context);
     const send=(service,method,responseData)=>{
