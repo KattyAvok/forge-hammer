@@ -33,6 +33,7 @@
             ratio<=1.2?1:ratio<=1.4?1.1:ratio<2?1.2:1.5;
     };
     const snapshot=s=>({...s,stock:{...s.stock},increments:{...s.increments},
+        qa:{...s.qa},
         totalCosts:{...s.totalCosts},protectedReserves:{...s.protectedReserves},
         steps:s.steps.slice(),
         usedOriginals:new Set(s.usedOriginals)});
