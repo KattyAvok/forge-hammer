@@ -52,3 +52,47 @@ test('QI bonus summary reads allowlisted static values only',()=>{
     assert.equal(JSON.stringify(x).includes('123456'),false);
     assert.equal(JSON.stringify(x).includes('abcd'),false);
 });
+
+test('single production cycle follows existing QI euphoria plus production boost',()=>{
+ const building={name:'Bakery',type:'production',components:{AllAge:{
+  production:{options:[{time:14400,products:[{
+   playerResources:{resources:{guild_raids_supplies:3000}},
+   requirements:{resources:{guild_raids_money:500}}
+  }]}]}
+ }}};
+ const stock={guild_raids_happiness:2000,guild_raids_total_population:1000};
+ const sums={guild_raids_supplies_production:150};
+ const value=production.estimateCycle(building,stock,sums);
+ assert.equal(value.status,'estimated-cycle');
+ assert.equal(value.output.guild_raids_supplies,9000);
+ assert.equal(value.net.guild_raids_money,-500);
+ assert.equal(value.optionTime,14400);
+ assert.equal(value.optionTimeUnit,'unverified');
+ const payback=production.perResourcePayback(building,
+  {guild_raids_supplies:100000,guild_raids_money:84000},stock,sums);
+ assert.equal(payback.cycles.guild_raids_supplies,12);
+ assert.equal(payback.cycles.guild_raids_money,null);
+ assert.equal(payback.timePaybackVerified,false);
+});
+test('main building bypasses euphoria and coins production boosts',()=>{
+ const building={name:'Town Hall',type:'main_building',
+  components:{AllAge:{production:{options:[{products:[{
+   playerResources:{resources:{guild_raids_money:500}}
+  }]}]}}}};
+ const result=production.estimateCycle(building,
+  {guild_raids_happiness:0,guild_raids_total_population:1000},
+  {guild_raids_coins_production:150});
+ assert.equal(result.output.guild_raids_money,500);
+ assert.equal(result.multipliers.guild_raids_money,1);
+});
+test('multiple QI production choices cannot be treated as one deterministic cycle',()=>{
+ const building={components:{AllAge:{production:{options:[{},{}]}}}};
+ assert.equal(production.estimateCycle(building,{}).status,
+  'unresolved-production-option');
+});
+test('missing euphoria blocks speculative production yields',()=>{
+ const building={components:{AllAge:{production:{options:[{products:[{
+  playerResources:{resources:{guild_raids_money:2000}}
+ }]}]}}}};
+ assert.equal(production.estimateCycle(building,{}).status,'missing-observed-euphoria');
+});
