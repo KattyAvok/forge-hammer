@@ -228,3 +228,73 @@ test('cost samples are opt-in and unavailable outside QI map',()=>{
     assert.equal(samples.samples[0].costs.guild_raids_money,2000);
     assert.equal(samples.samples[0].name,'Bakery');
 });
+
+test('Donor with no reserves still sees gross budget and missing Clapboard coins',()=>{
+    const store=new Map(), handlers={}, body={children:[],raw:''};
+    const node=()=>({
+        children:[],raw:'',length:1,
+        text(v){if(arguments.length){this.raw+=String(v);return this;}return this.raw;},
+        append(...v){this.children.push(...v);return this;},
+        empty(){this.raw='';this.children=[];return this;},
+        val(v){if(arguments.length){this.value=v;return this;}return this.value;},
+        attr(){return this;},on(){return this;}
+    });
+    let boxExists=false;
+    body.append=(...v)=>{body.children.push(...v);return body;};
+    body.empty=()=>{body.children=[];body.raw='';return body;};
+    const $=value=>value==='#qiSettlementSupport'?{length:boxExists?1:0}:
+        value==='#qiSettlementSupportBody'?{...body,length:boxExists?1:0}:node();
+    const definition=(name,type,pop,prod,cost)=>({
+        name,type,components:{AllAge:{
+            placement:{size:{x:3,y:3}},
+            staticResources:{resources:{resources:{guild_raids_population:pop}}},
+            production:{options:[{products:[{playerResources:{resources:prod}}]}]},
+            constructionCost:{cost:{resources:cost}}
+        }}
+    });
+    const FH={
+        World:'world2',Player:{ID:345},ActiveMap:'guild_raids',
+        Main:{CityEntities:{
+            bakery:definition('Bakery','production',-30,
+                {guild_raids_supplies:200},
+                {guild_raids_money:84000,guild_raids_supplies:100000,guild_raids_chrono_alloy:1000}),
+            clapboard:definition('Clapboard House','residential',150,
+                {guild_raids_money:500},
+                {guild_raids_money:210000,guild_raids_supplies:200000,guild_raids_chrono_alloy:1000})
+        }},
+        Storage:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v)},
+        proxy:{addHandler:(service,method,fn)=>{
+            if(typeof method==='function'){fn=method;method='all';}
+            ((handlers[service] ||= {})[method] ||= []).push(fn);
+        }},
+        HTML:{Box:()=>{boxExists=true;},AddCssFile:()=>{},CloseOpenBox:()=>{}}
+    };
+    store.set('QISettlementSupportSettingsV1_world2_345',
+        JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'',reserveSupplies:''}));
+    const context={FH,window:{location:{hostname:'world2.forgeofempires.com'}},
+        QISettlementCore:core,QISettlementStrategies:strategies,
+        QISettlementAdvisor:advisor,QISettlementSimulator:simulator,$};
+    context.globalThis=context;
+    vm.runInNewContext(source,context);
+    const send=(service,method,responseData)=>{
+        for(const fn of handlers[service]?.[method]||[])fn({requestMethod:method,responseData});
+        for(const fn of handlers[service]?.all||[])fn({requestMethod:method,responseData});
+    };
+    send('GuildRaidsService','getState',{__class__:'GuildRaidsRunningState',endsAt:10000});
+    send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:100000,guild_raids_supplies:300000,
+        guild_raids_chrono_alloy:1200,guild_raids_total_population:1000,
+        guild_raids_population:200,guild_raids_happiness:2200
+    }});
+    send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[{cityentity_id:'bakery',state:{__class__:'IdleState'}}],unlocked_areas:[]});
+    context.QISettlementSupport.Show();
+    const gather=object=>String(object.raw||'')+' '+
+        (object.children||[]).map(x=>typeof x==='string'?x:gather(x)).join(' ');
+    const output=gather(body);
+    assert.match(output,/orientační rozpočet ze současných zásob/i);
+    assert.match(output,/Předběžně kryto ze skladu: Bakery/);
+    assert.match(output,/Clapboard House — chybí money:/);
+    assert.match(output,/Nezadané rezervy se NEPOVAŽUJÍ za nulové/);
+    assert.doesNotMatch(output,/Bez rezervy nepočítáme bezpečný přebytek\.\s*Scénáře nelze/);
+});
