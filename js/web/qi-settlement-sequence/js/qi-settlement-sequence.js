@@ -277,6 +277,34 @@
             }
             if(first.length>=maxSearch)break;
         }
+        // Two sales may be needed to free land before one purchase.
+        // Keep both demolition intermediates valid and do not assume refunds,
+        // production collections, or missing geometry are known.
+        const selectedSellers=sellers.slice(0,12);
+        for(let i=0;i<selectedSellers.length && first.length<maxSearch;i++){
+            const a=selectedSellers[i];
+            const afterFirst=applySell(starts,a.key,a.def,boosts);
+            if(!afterFirst)continue;
+            for(let j=i+1;j<selectedSellers.length && first.length<maxSearch;j++){
+                const b=selectedSellers[j];
+                const afterSecond=applySell(afterFirst,b.key,b.def,boosts);
+                if(!afterSecond)continue;
+                const released=[a.rect,b.rect];
+                if(released.some(rect=>!rect))continue;
+                for(const build of buildingOptions) {
+                    if(first.length>=maxSearch)break;
+                    const result=applyBuild(afterSecond,build.key,build.def,
+                        allowedReserves,boosts);
+                    if(!result)continue;
+                    const fit=geometry.probeSequence(geometryIndex,[build.def],released);
+                    if(fit.status==='geometry-sequence-no-fit')continue;
+                    first.push({state:result,kind:'double-sale-replacement',
+                        geometryStatus:fit.status,
+                        proposedDefinitions:[build.def],
+                        removedRectangles:released});
+                }
+            }
+        }
         for(const item of first) {
             if(productiveImprovement(item.state,profile))
                 all.push(item);
@@ -312,6 +340,8 @@
             profile,sequenceDepth:depth,
             candidateDefinitions:buildingOptions.length,
             inspectedOriginalBuildings:sellers.length,
+            doubleSalePairsInspected:Math.min(66,
+                sellers.length*(sellers.length-1)/2),
             skippedBusySaleCandidates:busySaleBuildings,
             consideredVariants:first.length+all.length,
             plans:top,
@@ -326,6 +356,7 @@
                 'node-costs-unverified','future-production-not-spent',
                 'existing-production-euphoria-rebalance-unmodeled',
                 'uncollected-producing-or-completed-buildings-protected-from-sale',
+                'at-most-two-sales-before-purchase-no-reimbursement',
                 'donation-not-safe-without-plan-and-node'
             ],
             gameActionsPerformed:false};
