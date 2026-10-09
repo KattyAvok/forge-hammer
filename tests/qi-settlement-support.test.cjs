@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const core = require('../js/web/qi-settlement-core/js/qi-settlement-core.js');
+const strategies = require('../js/web/qi-settlement-strategies/js/qi-settlement-strategies.js');
 const source = fs.readFileSync(path.join(__dirname,
     '../js/web/qi-settlement-support/js/qi-settlement-support.js'), 'utf8');
 
@@ -27,7 +28,7 @@ function setup() {
         HTML:{Box:()=>{throw Error('No UI in headless test')},AddCssFile:()=>{},
             CloseOpenBox:()=>{}}
     };
-    const globals = {window,FH,QISettlementCore:core,$:()=>({length:0})};
+    const globals = {window,FH,QISettlementCore:core,QISettlementStrategies:strategies,$:()=>({length:0})};
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     return {
@@ -45,6 +46,7 @@ test('panel is read-only and begins without invented inventory',()=>{
     assert.equal(s.hasMap,false);
     assert.equal(s.mapStale,true);
     assert.equal(s.selectedProfile,'fighter');
+    assert.equal(s.selectedStage,'day1a');
     assert.equal(t.store.size,0);
     t.api.Show(); // main city: no window opened
 });
@@ -70,8 +72,9 @@ test('QI map and resource bag are observed, then a collection invalidates map',(
 test('profile settings remain scoped to world and player',()=>{
     const t=setup();
     t.store.set('QISettlementSupportSettingsV1_world1_123',
-        JSON.stringify({profile:'donor',reserveMoney:'500',reserveSupplies:'100'}));
+        JSON.stringify({profile:'donor',stage:'day4b',reserveMoney:'500',reserveSupplies:'100'}));
     assert.equal(t.api.Status().selectedProfile,'donor');
+    assert.equal(t.api.Status().selectedStage,'day4b');
     t.FH.World='world2';
     assert.equal(t.api.Status().selectedProfile,'fighter');
     t.FH.World='world1';t.FH.Player.ID=555;
@@ -106,4 +109,11 @@ test('non-QI city map is ignored even while QI is active',()=>{
     const t=setup();t.FH.ActiveMap='guild_raids';
     t.send('CityMapService','getCityMap',{gridId:'main',entities:[{}]});
     assert.equal(t.api.Status().hasMap,false);
+});
+
+test('invalid stored stage returns to safe default',()=>{
+    const t=setup();
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'unsafe-stage',reserveMoney:'',reserveSupplies:''}));
+    assert.equal(t.api.Status().selectedStage,'day1a');
 });
