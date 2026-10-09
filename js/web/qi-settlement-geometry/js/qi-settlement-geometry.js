@@ -56,9 +56,26 @@
                 reason:ambiguous?'unknown-building-footprints':'overlapping-building-footprints',
                 unknownBuildings:ambiguous,overlapTiles:overlap};
         const inArea=[...occupied].filter(t=>usable.has(t)).length;
-        if(inArea!==occupied.size)
+        if(inArea!==occupied.size) {
+            const excluded={road:0,main:0,other:0,partial:0,entire:0};
+            for(const e of entities) {
+                const r=rectOfBuilding(e,definitions);
+                if(!r)continue;
+                let included=0;
+                for(let dx=0;dx<r.width;dx++)
+                    for(let dy=0;dy<r.length;dy++)
+                        if(usable.has(key(r.x+dx,r.y+dy)))included++;
+                if(included===r.width*r.length)continue;
+                excluded[r.isStreet?'road':r.isMain?'main':'other']++;
+                excluded[included>0?'partial':'entire']++;
+            }
             return {status:'insufficient-evidence',reason:'buildings-outside-unlocked-areas',
-                outsideTiles:occupied.size-inArea};
+                outsideTiles:occupied.size-inArea,
+                outsideGroups:excluded,areaTiles:usable.size,buildingTiles:occupied.size,
+                buildingsScanned:entities.length,
+                baseAreaCount:areas.filter(a=>a.width===16&&a.length===16).length,
+                expansionAreaCount:areas.filter(a=>a.width===4&&a.length===4).length};
+        }
         const free=new Set([...usable].filter(x=>!occupied.has(x)));
         // Road connectivity is only evaluated if both street and main
         // footprints are known. We do not assume a specific road level.
