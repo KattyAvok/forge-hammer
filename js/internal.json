@@ -41,6 +41,7 @@
 	"qiprogress",
 	"qi-settlement-core",
 	"qi-settlement-diagnostics",
+	"qi-settlement-support",
 	"quests",
 	"gexstat",
 	"dbexport",
