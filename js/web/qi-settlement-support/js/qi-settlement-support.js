@@ -135,7 +135,8 @@
                 globalThis.QISettlementAdvisor.features(state.map.entities,FH.Main?.CityEntities),
                 state.map.summary?.unlockedAreaCount) : null;
         const meta=FH.Main?.CityEntities;
-        const complete=!!(state.running&&!state.mapStale&&state.map?.entities&&state.stock);
+        const complete=!!(FH.ActiveMap==='guild_raids'&&state.running&&
+            !state.mapStale&&state.map?.entities&&state.stock);
         const empty={status:'missing-or-stale-state'};
         const geom=complete?globalThis.QISettlementGeometry.summarize(state.map.layoutIndex):empty;
         const catalog=globalThis.QISettlementAdvisor.catalogCoverage(meta);
