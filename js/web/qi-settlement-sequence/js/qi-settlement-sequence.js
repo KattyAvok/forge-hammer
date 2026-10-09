@@ -248,9 +248,10 @@
         for(const build of buildingOptions) {
             const n=applyBuild(starts,build.key,build.def,allowedReserves,boosts);
             if(n) {
-                const fit=geometry.probeFit(geometryIndex,build.def,2);
-                if(fit.status!=='geometry-no-fit')
-                    first.push({state:n,kind:'build',geometryStatus:fit.status});
+                const fit=geometry.probeSequence(geometryIndex,[build.def]);
+                if(fit.status!=='geometry-sequence-no-fit')
+                    first.push({state:n,kind:'build',geometryStatus:fit.status,
+                        proposedDefinitions:[build.def],removedRectangles:[]});
             }
         }
         // One demolition followed immediately by a supported purchase.
@@ -260,10 +261,11 @@
             for(const build of buildingOptions) {
                 const n=applyBuild(before,build.key,build.def,allowedReserves,boosts);
                 if(!n)continue;
-                const fit=geometry.probeFit(geometryIndex,build.def,2,
-                    sell.rect?[sell.rect]:[]);
-                if(fit.status==='geometry-no-fit')continue;
-                first.push({state:n,kind:'replace',geometryStatus:fit.status});
+                const freed=sell.rect?[sell.rect]:[];
+                const fit=geometry.probeSequence(geometryIndex,[build.def],freed);
+                if(fit.status==='geometry-sequence-no-fit')continue;
+                first.push({state:n,kind:'replace',geometryStatus:fit.status,
+                    proposedDefinitions:[build.def],removedRectangles:freed});
                 if(first.length>=maxSearch)break;
             }
             if(first.length>=maxSearch)break;
@@ -281,8 +283,12 @@
                     if(all.length>=maxSearch)break;
                     const n=applyBuild(item.state,build.key,build.def,allowedReserves,boosts);
                     if(!n||!productiveImprovement(n,profile))continue;
+                    const combined=geometry.probeSequence(geometryIndex,
+                        item.proposedDefinitions.concat([build.def]),
+                        item.removedRectangles);
+                    if(combined.status==='geometry-sequence-no-fit')continue;
                     all.push({state:n,kind:'two-step',
-                        geometryStatus:item.geometryStatus==='geometry-no-fit'?'geometry-no-fit':'unverified-multi-step'});
+                        geometryStatus:combined.status});
                 }
         }
         // Only sort after simulating full intermediate budgets/constraints.
@@ -308,6 +314,7 @@
             blockers:[
                 'shop-unlocks-unverified','road-levels-unverified',
                 'game-placement-unverified','cycle-time-unverified',
+                'two-building-fit-does-not-verify-roads-unlocks-or-build-order',
                 'node-costs-unverified','future-production-not-spent',
                 'existing-production-euphoria-rebalance-unmodeled',
                 'donation-not-safe-without-plan-and-node'
