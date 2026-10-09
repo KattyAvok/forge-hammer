@@ -49,7 +49,8 @@
             if(boostKeys.includes(b.type)&&fin(b.value))
                 bonus[b.type]=(bonus[b.type]||0)+b.value;
         }
-        return {e,yieldDelta,cycleKnown:estimate.status==='estimated-cycle',bonus};
+        return {e,yieldDelta,cycleKnown:estimate.status==='estimated-cycle',
+            rawOptionTime:estimate.status==='estimated-cycle'?estimate.optionTime:null,bonus};
     }
     function addDelta(target,delta,multiple=1) {
         for(const [k,v] of Object.entries(delta))
@@ -99,6 +100,7 @@
             duringPopulation:interim,afterPopulation:postAvailable,
             afterEuphoriaFactor:after,
             cost:{...spending},productionGain:fx.cycleKnown?{...fx.yieldDelta}:null,
+            rawProductionOptionTime:fx.rawOptionTime,
             timeToComplete:'unverified',gameActionVerified:false});
         newState.lastBuilding=key;
         return newState;
@@ -126,6 +128,8 @@
         n.usedOriginals.add(key);
         n.steps.push({type:'sell',building:sanitize(def.name),
             populationAfter:av,euphoriaFactorAfter:ratio,
+            productionLoss:info.cycleKnown?{...info.yieldDelta}:null,
+            rawProductionOptionTime:info.rawOptionTime,
             refunds:'not-assumed',gameActionVerified:false});
         return n;
     }
