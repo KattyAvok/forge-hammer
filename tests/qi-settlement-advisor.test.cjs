@@ -110,3 +110,31 @@ test('donor recommendations never claim surpluses without manual reserves',()=>{
     assert.equal(donation.actionable,false);
     assert.equal(donation.surplusAboveManualReserve.guild_raids_money,5000);
 });
+
+test('schema discovery finds nested price structure without emitting values or entity ids',()=>{
+    const bakery=def('Bakery','production',-50,0,{guild_raids_supplies:100});
+    bakery.components.AllAge.constructionCost={
+        resources:{guild_raids_money:42000,guild_raids_supplies:21500,guild_raids_chrono_alloy:200}
+    };
+    bakery.player_id=9999;
+    const report=advisor.priceSchemaDiscovery({'secret-city-identifier':bakery});
+    assert.equal(report.examinedDefinitions,1);
+    assert.equal(report.definitionsWithQIPriceTokens,1);
+    const path=report.paths.find(x=>x.priceContext&&x.money&&x.supplies&&x.alloy);
+    assert.ok(path);
+    assert.match(path.path,/constructionCost/);
+    const text=JSON.stringify(report);
+    assert.equal(text.includes('9999'),false);
+    assert.equal(text.includes('secret-city-identifier'),false);
+    assert.equal(text.includes('42000'),false);
+    assert.equal(text.includes('21500'),false);
+});
+
+test('price schema probe handles empty metadata and does not invent prices',()=>{
+    assert.equal(advisor.priceSchemaDiscovery(null),null);
+    const bakery=def('Bakery','production',-20,0,{guild_raids_supplies:100});
+    const result=advisor.priceSchemaDiscovery({bakery});
+    assert.equal(result.examinedDefinitions,1);
+    assert.equal(result.definitionsWithQIPriceTokens,0);
+    assert.equal(result.paths.every(x=>!x.priceContext),true);
+});
