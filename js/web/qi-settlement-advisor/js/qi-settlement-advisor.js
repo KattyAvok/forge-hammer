@@ -376,7 +376,12 @@
         }
         const ranked=rankBuilds(definitions,profile,result.focus.name,
             population,happy,observed,reserves);
-        for(const candidate of ranked.slice(0,3)){
+        // Economic rankings without confirmed price cannot be used to choose
+        // sell/build sequences; suppress these misleading "recommendations".
+        const priced=ranked.filter(candidate=>candidate.cost !== null);
+        if(ranked.length && priced.length===0)
+            result.blockers.push('Building suggestions suppressed: current QI construction prices are unverified');
+        for(const candidate of priced.slice(0,3)){
             const costText=candidate.cost?
                 'Cena z metadat: '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
                 'Stavební cena zatím nebyla v herních metadatech ověřena.';
