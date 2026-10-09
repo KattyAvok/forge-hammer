@@ -16,7 +16,9 @@
         stock: null,
         map: null,
         mapStale: true,
-        lastSource: null
+        lastSource: null,
+        advisorRevision: 0,
+        advisorCache: null
     };
 
     const valid = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
@@ -59,12 +61,37 @@
     function resetMap() {
         state.map = null;
         state.mapStale = true;
+        state.advisorRevision++;
+        state.advisorCache = null;
     }
 
     function resetRun() {
         state.stock = null;
         state.lastSource = null;
         resetMap();
+    }
+
+    function readReserves(prefs) {
+        return {
+            guild_raids_money: prefs.reserveMoney === '' ? null : Number(prefs.reserveMoney),
+            guild_raids_supplies: prefs.reserveSupplies === '' ? null : Number(prefs.reserveSupplies)
+        };
+    }
+    function advice(profile, prefs) {
+        if (!state.running || state.mapStale || !state.map || !state.stock)
+            return null;
+        const key=state.advisorRevision+'|'+profile+'|'+prefs.reserveMoney+'|'+prefs.reserveSupplies;
+        if(state.advisorCache?.key===key)return state.advisorCache.value;
+        const result=globalThis.QISettlementAdvisor.advise({
+            profile,
+            stock:state.stock,
+            entities:state.map.entities,
+            definitions:FH.Main?.CityEntities,
+            unlockedAreaCount:state.map.summary?.unlockedAreaCount,
+            reserves:readReserves(prefs)
+        });
+        state.advisorCache={key,value:result};
+        return result;
     }
 
     function render() {
@@ -93,7 +120,42 @@
         profileRow.append(profile);
         panel.append(profileRow);
 
-        panel.append(section('Průvodce — ruční výběr etapy'));
+        panel.append(section('Automatická analýza aktuální osady'));
+        const decision=advice(preferences.profile,preferences);
+        const phaseNames={
+            'foundation':'základní ekonomika',
+            'early-rebuild':'počáteční přestavby',
+            'rope':'rozvoj Rope a expanzí',
+            'expansion':'pokročilé rozšiřování',
+            'advanced':'pokročilá ekonomika',
+            'unknown':'nelze spolehlivě určit'
+        };
+        if(!decision) {
+            panel.append(hint('Není k dispozici čerstvá mapa a zásoby QI. Pro konkrétní doporučení znovu otevři QI osadu.'));
+        } else {
+            panel.append(row('Odhad rozvojové fáze',
+                (phaseNames[decision.phase.code]||'neznámá')+
+                ' · jistota '+(decision.phase.confidence==='medium'?'střední':'nízká')));
+            panel.append(hint('Důvod: '+decision.phase.reason));
+            panel.append(row('Ekonomické omezení',decision.focus.name));
+            panel.append(hint(decision.focus.reason));
+            const recList=$('<ol class="qi-support-advice"/>');
+            for(const rec of decision.recommendations.slice(0,6)){
+                const item=$('<li/>')
+                    .append($('<strong/>').text(rec.title))
+                    .append($('<p/>').text(rec.why))
+                    .append($('<small/>').text(rec.limitations));
+                recList.append(item);
+            }
+            panel.append(recList);
+            if(decision.recommendations.length===0)
+                panel.append(hint('Žádné bezpečně odvoditelné doporučení. Chybí ověřené ceny nebo omezení.'));
+            if(decision.blockers.length)
+                panel.append(hint('Co brání přesné optimalizaci: '+decision.blockers.join('; ')));
+            panel.append(hint('Kandidáti nejsou příkazy k demolici ani potvrzeně dostupné stavby.'));
+        }
+
+        panel.append(section('Referenční návod — volitelná etapa'));
         const strategyData = globalThis.QISettlementStrategies;
         const stagePicker = $('<select id="qi-support-stage"/>');
         for (const code of strategyData.stages)
@@ -216,6 +278,8 @@
         const resources = core.normalizeQIStock(data?.responseData);
         if (Object.keys(resources).length === 0) return;
         state.stock = resources;
+        state.advisorRevision++;
+        state.advisorCache = null;
         state.lastSource = 'getPlayerResourceBag';
         render();
     });
@@ -223,6 +287,8 @@
         const resources = core.normalizeQIStock(data?.responseData);
         if (Object.keys(resources).length === 0) return;
         state.stock = resources;
+        state.advisorRevision++;
+        state.advisorCache = null;
         state.lastSource = 'getPlayerResources';
         render();
     });
@@ -251,11 +317,14 @@
         if (response?.gridId !== 'guild_raids') return;
         const entities = response?.entities;
         state.map = {
+            entities:Array.isArray(entities)?entities:null, // memory only; never persisted or reported
             summary:core.normalizeMap(response),
             derived:core.deriveEconomy(entities,FH.Main?.CityEntities),
             audit:core.auditBuildingStates(entities,FH.Main?.CityEntities)
         };
         state.mapStale = false;
+        state.advisorRevision++;
+        state.advisorCache = null;
         render();
     });
 
