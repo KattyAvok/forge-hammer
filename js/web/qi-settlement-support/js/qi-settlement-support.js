@@ -21,7 +21,8 @@
         mapStale: true,
         lastSource: null,
         advisorRevision: 0,
-        advisorCache: null
+        advisorCache: null,
+        sequenceCache: null
     };
 
     const valid = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
@@ -66,6 +67,7 @@
         state.mapStale = true;
         state.advisorRevision++;
         state.advisorCache = null;
+        state.sequenceCache = null;
     }
 
     function resetRun() {
@@ -361,16 +363,29 @@
             for(const [key,value] of Object.entries(provided))
                 if(valid(value))reserves[key]=value;
         }
-        return globalThis.QISettlementSequence.explore({
+        const sums=typeof Boosts!=='undefined'?Boosts.Sums||{}:{};
+        const signature=[
+            state.advisorRevision,prefs.profile,
+            prefs.reserveMoney,prefs.reserveSupplies,
+            sums.guild_raids_coins_production,
+            sums.guild_raids_supplies_production,
+            sums.guild_raids_action_points_collection,
+            sums.guild_raids_action_points_capacity
+        ].join('|');
+        if(state.sequenceCache?.signature===signature)
+            return state.sequenceCache.result;
+        const result=globalThis.QISettlementSequence.explore({
             stock:state.stock,
             entities:state.map.entities,
             definitions:FH.Main?.CityEntities,
             geometryIndex:state.map.layoutIndex,
             profile:prefs.profile,
             reserves,
-            boosts:typeof Boosts!=='undefined'?Boosts.Sums||{}:{},
+            boosts:sums,
             maxDepth:2
         });
+        state.sequenceCache={signature,result};
+        return result;
     }
 
     function render() {
