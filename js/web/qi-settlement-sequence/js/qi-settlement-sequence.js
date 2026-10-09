@@ -139,7 +139,11 @@
             stock[total],stock[happy],stock,{});
         // Include QI cultural/population candidate when those constrain
         // the city, but keep each type bounded.
-        return ranked.filter(c=>c.cost&&definitions[c.definitionId])
+        // A high-scoring but unaffordable building must not crowd out
+        // lower-scoring investments the current city can actually finance.
+        // Any budget deficit is not assumed to be funded by a demolition.
+        return ranked.filter(c=>c.cost&&c.grossAffordable===true &&
+            definitions[c.definitionId])
             .slice(0,maxCandidate).map(c=>({
                 key:c.definitionId,def:definitions[c.definitionId],
                 area:advisor.size(definitions[c.definitionId]),
