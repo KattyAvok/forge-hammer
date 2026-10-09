@@ -314,3 +314,44 @@ test('Donor without reserves is explicitly gross-only, never protected',()=>{
         JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'500',reserveSupplies:'200'}));
     assert.equal(t.api.Status().reserveMode,'manual-protected');
 });
+
+test('sanitized scenario diagnostic separates missing happiness from lack of money',()=>{
+    const t=setup();t.FH.ActiveMap='guild_raids';
+    t.FH.Main.CityEntities={
+        bakery:{name:'Bakery',type:'production',components:{AllAge:{
+            placement:{size:{x:3,y:3}},
+            staticResources:{resources:{resources:{guild_raids_population:-20}}},
+            production:{options:[{products:[{
+                playerResources:{resources:{guild_raids_supplies:350}}
+            }]}]},
+            buildingRequirements:{cost:{resources:{
+                guild_raids_money:84000,
+                guild_raids_supplies:100000,
+                guild_raids_chrono_alloy:1000
+            }}}
+        }}}
+    };
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day4b',
+            reserveMoney:'',reserveSupplies:''}));
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:12345
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:100000,
+        guild_raids_supplies:200000,
+        guild_raids_chrono_alloy:2000,
+        guild_raids_population:200
+    }});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[{cityentity_id:'bakery'}],unlocked_areas:[{}]});
+    const r=t.api.ScenarioStatus();
+    assert.equal(r.status,'model-preview');
+    assert.ok(r.missingEconomicKeys.includes('guild_raids_happiness'));
+    assert.ok(r.missingEconomicKeys.includes('guild_raids_total_population'));
+    assert.equal(r.counts.modeledBuilds,0);
+    assert.equal(r.counts.provisionalBuilds,1);
+    assert.equal(r.counts.blockedBuilds,0);
+    assert.equal(JSON.stringify(r).includes('100000'),false);
+    assert.equal(JSON.stringify(r).includes('12345'),false);
+});
