@@ -293,7 +293,18 @@
                         constructionTimeVerified:false,
                         spendableGains:null
                     }:null,
-                    blockers:p.blockers
+                    blockers:p.blockers,
+                    donorInvestmentProtection:(()=>{
+                        if(settings().profile!=='donor')return null;
+                        const b=globalThis.QISettlementDonationBudget.budget({
+                            stock:state.stock,plans:p.plans,
+                            manualReserves:readReserves(settings())
+                        });
+                        return {status:b.status,evaluatedPlans:b.evaluatedPlans||0,
+                            manualReserveComplete:!!b.manualReserveComplete,
+                            actualDonationSafe:false,
+                            nodeCostVerified:!!b.nodeCostVerified};
+                    })()
                 };
             })(),
             evidence:{
@@ -583,6 +594,27 @@
                 ranked.append(item);
             }
             panel.append(ranked);
+            if(preferences.profile==='donor'&&sequence.plans.length) {
+                const observedReserves=readReserves(preferences);
+                const donorBudget=globalThis.QISettlementDonationBudget.budget({
+                    stock:state.stock,
+                    plans:sequence.plans,
+                    manualReserves:observedReserves
+                });
+                if(donorBudget.investmentBuffer) {
+                    panel.append($('<h4/>').text('Ochrana zdrojů pro další přestavby'));
+                    for(const source of [moneyKey,suppliesKey,'guild_raids_chrono_alloy']) {
+                        const entry=donorBudget.investmentBuffer[source];
+                        if(!entry)continue;
+                        panel.append(row(source.replace('guild_raids_','')+
+                            ' · maximální investiční náklad',numberText(entry.reservedForInvestment)));
+                        if(entry.manualReserve!==null)
+                            panel.append(row(source.replace('guild_raids_','')+
+                                ' · ruční rezerva',numberText(entry.manualReserve)));
+                    }
+                    panel.append(hint('Plán chrání nejvyšší cenu mezi porovnávanými variantami; hodnoty nad rezervou nejsou bezpečná částka k darování. Ceny a QA konkrétního uzlu nejsou ověřené.'));
+                }
+            }
             const hours=remainingHours();
             const evidence=timeEvidence();
             if(hours!==null) {
