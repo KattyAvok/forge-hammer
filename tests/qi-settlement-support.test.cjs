@@ -525,3 +525,42 @@ test('compact report counts protected busy-production sale candidates',()=>{
     assert.equal(report.productionReadiness.active,1);
     assert.equal(report.sequencePreview.jointFootprintFitPlans>=0,true);
 });
+
+test('one compact report includes protected near-collection advice without leaking entity ids',()=>{
+    const t=setup();t.FH.ActiveMap='guild_raids';
+    t.FH.Main.CityEntities.bakery={
+        name:'Bakery',type:'production',components:{AllAge:{
+            placement:{size:{x:2,y:2}},
+            staticResources:{resources:{resources:{guild_raids_population:-30}}},
+            production:{options:[{time:3600,products:[{
+                playerResources:{resources:{guild_raids_supplies:2500}}
+            }]}]},
+            buildingRequirements:{cost:{resources:{guild_raids_money:84000,
+                guild_raids_supplies:100000}}}
+        }}
+    };
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:2000000000
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:200000,guild_raids_supplies:200000,
+        guild_raids_chrono_alloy:1000,
+        guild_raids_population:200,guild_raids_total_population:1000,
+        guild_raids_happiness:2500
+    }});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[{id:654321098,cityentity_id:'bakery',x:510,y:520,
+            state:{__class__:'ProducingState',next_state_transition_in:300}}],
+        unlocked_areas:[{x:510,y:520,width:6,length:6}]
+    });
+    const output=t.api.ShareReport();
+    const report=JSON.parse(output);
+    assert.equal(report.productionOpportunities.counts.producing,1);
+    assert.equal(report.productionOpportunities.nearestTransitionMinutes,5);
+    assert.equal(report.productionOpportunities.opportunities[0].collectibleVerified,false);
+    assert.equal(report.productionOpportunities.collectedResourcesCredited,false);
+    for(const forbidden of ['654321098','510','520']) {
+        // Coordinates and IDs may not appear as *strings*.
+        assert.equal(output.includes('"'+forbidden+'"'),false);
+    }
+});
