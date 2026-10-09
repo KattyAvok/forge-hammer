@@ -22,6 +22,7 @@ _menu = {
 	Items: [
 		'partCalc',
 		'outpost',
+		'qiSettlement',
 		'productions',
 		'productionsRating',
 		'hiddenRewards',
@@ -350,6 +351,7 @@ _menu = {
 		{ id: 'partCalc', title: FH.t('Menu.OwnpartCalculator.Title'), description: FH.t('Menu.OwnpartCalculator.Desc'), warning: '<em id="partCalc-Btn-closed" class="tooltip-error">' + FH.t('Menu.OwnpartCalculator.Warning') + '<br></em>'},
 		{ id: 'unit', title: FH.t('Menu.Unit.Title'), description: FH.t('Menu.Unit.Desc'), warning: '<em id="unit-Btn-closed" class="tooltip-error">' + FH.t('Menu.Unit.Warning') + '<br></em>'},
 		{ id: 'outpost', title: FH.t('Menu.OutP.Title'), description: FH.t('Menu.OutP.Desc'), warning: FH.t('Menu.OutP.DescWarningOutpostData') },
+		{ id: 'qiSettlement', title: 'QI Settlement Support', description: 'Read-only Fighter / Donor planning status' },
 		{ id: 'shopAssist', title: FH.t('Menu.ShopAssist.Title'), description: FH.t('Menu.ShopAssist.Desc'), warning: '<i id="shopAssist-Btn-closed" class="tooltip-error">' + FH.t('Menu.ShopAssist.DescWarning') + '</i>' },
 		{ id: 'productionsRating', title: FH.t('Menu.ProductionsRating.Title'), description: FH.t('Menu.ProductionsRating.Desc') },
 		{ id: 'negotiation', title: FH.t('Menu.Negotiation.Title'), description: FH.t('Menu.Negotiation.Desc'), warning: '<em id="negotiation-Btn-closed" class="tooltip-error">' + FH.t('Menu.Negotiation.Warning') + '<br></em>' },
@@ -434,6 +436,19 @@ _menu = {
 		});
 
 		return btn.append(btnEl);
+	},
+
+	/** QI settlement status: no direct game actions. */
+	qiSettlement_Btn: () => {
+		const button = _menu.MakeButton('qiSettlement');
+		const link = $('<span />').text('QI').css({
+			display: 'flex', alignItems: 'center', justifyContent: 'center',
+			fontWeight: 'bold', fontSize: '12px'
+		}).on('click', () => {
+			if (FH.ActiveMap === 'guild_raids' && globalThis.QISettlementSupport)
+				globalThis.QISettlementSupport.Show();
+		});
+		return button.append(link);
 	},
 
 	/**
