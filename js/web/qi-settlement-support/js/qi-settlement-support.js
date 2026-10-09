@@ -165,6 +165,11 @@
                 recList.append(item);
             }
             panel.append(recList);
+            if (preferences.profile==='donor' && decision.grossBuilds?.length) {
+                panel.append(hint('Predbezne financne kryte stavby ze skladu (nikoli schvalene investice): '+
+                    decision.grossBuilds.slice(0,5).map(x=>x.name).join(', ')+'.'));
+            }
+
             if(decision.blockedBuilds?.length) {
                 const blocked=decision.blockedBuilds.filter(b=>
                     b.grossAffordable===false || b.populationOK===false);
