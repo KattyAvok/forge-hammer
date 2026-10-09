@@ -37,7 +37,9 @@
                     for(const [currencyKey,amount] of Object.entries(v)) {
                         if(currency.test(currencyKey)&&finite(amount)&&amount>0)
                             parsed[currencyKey]=amount;
-                        else if(amount!==0 && currencyKey.startsWith('guild_raids_'))
+                        else if(amount!==0)
+                            // Any unknown nonzero cost (including diamonds,
+                            // generic goods, or QA) makes the quote incomplete.
                             usable=false;
                     }
                     if(Object.keys(parsed).length){
@@ -70,7 +72,7 @@
         explicitlyPricedCandidates:0,unclassifiedResourceBundles:0,
         rewardBundles:0,ambiguousNodePricing:0,
         grossBudgetCovered:0,protectedBudgetCovered:0,
-        grossBudgetShortfall:0,unknownBalances:0,qaFieldCandidates:0};
+        unprotectedGrossMatches:0,unknownBalances:0,qaFieldCandidates:0};
     const sourceKinds={money:0,supplies:0,chrono_alloy:0,other:0};
     const candidatePriceNodes=[];
     for(const n of snapshot.nodes){
@@ -103,7 +105,7 @@
         }
         if(unknown){totals.unknownBalances++;continue;}
         totals.grossBudgetCovered+=Number(gross);
-        if(gross&&!protectedBudget)totals.grossBudgetShortfall++;
+        if(gross&&!protectedBudget)totals.unprotectedGrossMatches++;
         totals.protectedBudgetCovered+=Number(protectedBudget);
         candidatePriceNodes.push({gross,protectedBudget});
     }
