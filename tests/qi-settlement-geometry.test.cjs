@@ -148,3 +148,42 @@ test('partly outside impediment blocks only tiles within unlocked land',()=>{
     assert.equal(geometry.summarize(idx).occupiedTiles,1);
     assert.equal(geometry.summarize(idx).skippedOutsideTiles,1);
 });
+
+test('two individually fitting footprints can still be impossible together',()=>{
+    const defs={home:def(2,2)};
+    const idx=geometry.indexMap([{x:0,y:0,width:3,length:2}],[],defs);
+    assert.equal(geometry.probeFit(idx,def(2,2)).status,'geometry-fit');
+    const together=geometry.probeSequence(idx,[def(2,2),def(2,2)]);
+    assert.equal(together.status,'geometry-sequence-no-fit');
+    assert.equal(together.actionable,false);
+});
+test('two small footprints are geometrically co-placeable on disjoint tiles',()=>{
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:2}],[],{});
+    const result=geometry.probeSequence(idx,[def(2,2),def(2,2)]);
+    assert.equal(result.status,'geometry-sequence-fit');
+    assert.equal(result.buildings,2);
+    assert.equal(result.roadLevelsVerified,false);
+});
+test('a documented demolition frees occupied land for a two-building sequence',()=>{
+    const defs={house:def(2,2)};
+    const e={cityentity_id:'house',x:0,y:0};
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:2}],[e],defs);
+    assert.equal(geometry.probeSequence(idx,[def(2,2),def(2,2)]).status,
+        'geometry-sequence-no-fit');
+    const released=geometry.rectOfBuilding(e,defs);
+    assert.equal(geometry.probeSequence(idx,[def(2,2),def(2,2)],[released]).status,
+        'geometry-sequence-fit');
+});
+test('made-up demolished plots cannot create new unlocked area',()=>{
+    const idx=geometry.indexMap([{x:0,y:0,width:4,length:2}],[],{});
+    const unknown=geometry.probeSequence(idx,[def(2,2),def(2,2)],
+        [{x:9,y:9,width:2,length:2}]);
+    assert.equal(unknown.status,'unknown');
+    assert.equal(unknown.reason,'demolition-footprint-not-proven');
+});
+test('uncertain geometry stays unknown and does not claim available space',()=>{
+    const idx={status:'insufficient-evidence'};
+    assert.equal(geometry.probeSequence(idx,[def(2,2)]).status,'unknown');
+    assert.equal(geometry.probeSequence(idx,[def(2,2),def(2,2),def(1,1)])
+        .status,'unknown');
+});
