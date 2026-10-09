@@ -42,7 +42,7 @@ function setup() {
     globals.globalThis=globals;
     vm.runInNewContext(source,globals);
     return {
-        FH,store,logs,api:globals.QISettlementSupport,
+        FH,store,logs,scope:globals,api:globals.QISettlementSupport,
         send:(service,method,responseData)=>{
             for(const h of handlers[service]?.[method]||[])h({requestMethod:method,responseData});
             for(const h of handlers[service]?.['all']||[])h({requestMethod:method,responseData});
@@ -457,4 +457,36 @@ test('leaving QI invalidates diagnostic readiness even if a previous map snapsho
     const report=JSON.parse(t.logs[t.logs.length-1]);
     assert.equal(report.state.mapFresh,false);
     assert.equal(report.geometry.status,'missing-or-stale-state');
+});
+
+test('planner cache reuses an unchanged map/stock and invalidates on new stock or boosts',()=>{
+    const t=setup();t.FH.ActiveMap='guild_raids';
+    let count=0;
+    t.scope.QISettlementSequence={
+        explore(){count++;return {
+            status:'mock',plans:[],candidateDefinitions:0,
+            inspectedOriginalBuildings:0,sequenceDepth:2,
+            ranking:'mock',blockers:[]
+        };}
+    };
+    t.scope.Boosts={Sums:{guild_raids_coins_production:0}};
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day1a',reserveMoney:'',reserveSupplies:''}));
+    t.send('GuildRaidsService','getState',{__class__:'GuildRaidsRunningState',
+        endsAt:2000000000});
+    const holdings={guild_raids_money:100000,guild_raids_supplies:100000,
+        guild_raids_chrono_alloy:1000,guild_raids_population:100,
+        guild_raids_total_population:200,guild_raids_happiness:500};
+    t.send('ResourceService','getPlayerResources',{resources:holdings});
+    t.send('CityMapService','getCityMap',{gridId:'guild_raids',
+        entities:[],unlocked_areas:[{x:500,y:500,width:4,length:4}]});
+    t.api.ShareReport();t.api.ShareReport();
+    assert.equal(count,1);
+    t.scope.Boosts.Sums.guild_raids_coins_production=50;
+    t.api.ShareReport();
+    assert.equal(count,2);
+    t.send('ResourceService','getPlayerResources',{resources:{...holdings,
+        guild_raids_money:holdings.guild_raids_money+1}});
+    t.api.ShareReport();
+    assert.equal(count,3);
 });
