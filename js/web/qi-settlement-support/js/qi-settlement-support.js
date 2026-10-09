@@ -712,6 +712,20 @@
 
         if (preferences.profile === 'donor') {
             panel.append(section('Donor — chráněné rezervy'));
+            if(state.running && !state.mapStale && state.stock) {
+                const nodes=nodeBudgetCoverage();
+                if(nodes.coverage) {
+                    panel.append(row('QI uzly s jednoznačným kandidátem ceny',
+                        numberText(nodes.coverage.explicitlyPricedCandidates)));
+                    panel.append(row('Nezařazené surovinové balíčky uzlů',
+                        numberText(nodes.coverage.unclassifiedResourceBundles)));
+                    if(nodes.coverage.explicitlyPricedCandidates)
+                        panel.append(hint('Předběžně pokryté zdroji a plánovací rezervou: '+
+                            numberText(nodes.coverage.protectedBudgetCovered)+
+                            ' uzlů. Jde pouze o výpočet podle možných nákladů z mapy, ne o schválení darování.'));
+                }
+            }
+            panel.append(hint('Přesnou cenu konkrétního QI uzlu, jeho odemčení a spotřebu Quantum Actions zatím nelze spolehlivě odvodit; nic proto automaticky nedarujeme.'));
             panel.append(hint('Zadej minimální částku, kterou potřebuješ ponechat pro další výstavbu. Bez rezervy nepočítáme bezpečný přebytek. Jednotlivé stavební ceny už umíme načíst z metadat, ale plán navazujících staveb ani cenu konkrétního donačního uzlu ještě automaticky nesestavujeme.'));
             const reserveEditor = (label, property) => {
                 const holder = $('<label class="qi-support-reserve"/>').text(label + ': ');
