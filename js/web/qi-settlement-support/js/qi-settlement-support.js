@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.4-qi-affordability-gate';
+    const BUILD = '1.8.1.5-qi-donor-gross-budget';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     const state = {
@@ -475,6 +475,9 @@
             running:state.running, difficulty:state.difficulty,
             hasStock:!!state.stock, mapStale:state.mapStale,
             hasMap:!!state.map, selectedProfile:settings().profile,
+            reserveMode:settings().profile==='donor' ?
+                (settings().reserveMoney!=='' && settings().reserveSupplies!=='' ?
+                    'manual-protected' : 'gross-only') : 'not-applicable',
             selectedStage:settings().stage,
             autoPhase:(!state.mapStale && state.map?.entities)?
                 globalThis.QISettlementAdvisor.inferPhase(
