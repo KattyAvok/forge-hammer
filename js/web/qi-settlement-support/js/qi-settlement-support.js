@@ -268,6 +268,14 @@
             }:null,
             qiBoosts:full.metadata.qiBoosts,
             productionCycles:full.metadata.productionCycleEstimates.slice(0,6),
+            sequencePreview:(()=>{
+                const p=sequencePreview();
+                return p?{status:p.status,planCount:p.plans.length,
+                    inspectedOriginalBuildings:p.inspectedOriginalBuildings,
+                    candidateDefinitions:p.candidateDefinitions,
+                    depth:p.sequenceDepth,ranking:p.ranking,
+                    blockers:p.blockers}:null;
+            })(),
             evidence:{
                 status:contract.status,eventCounts:contract.eventCounts,
                 truncatedTraversals:contract.truncatedTraversals,
@@ -276,6 +284,28 @@
             },
             openGates:full.openGates
         },null,2);
+    }
+
+    function sequencePreview() {
+        if(FH.ActiveMap!=='guild_raids'||!state.running||state.mapStale||
+            !state.map?.entities||!state.stock)return null;
+        const prefs=settings();
+        const reserves={};
+        if(prefs.profile==='donor') {
+            const provided=readReserves(prefs);
+            for(const [key,value] of Object.entries(provided))
+                if(valid(value))reserves[key]=value;
+        }
+        return globalThis.QISettlementSequence.explore({
+            stock:state.stock,
+            entities:state.map.entities,
+            definitions:FH.Main?.CityEntities,
+            geometryIndex:state.map.layoutIndex,
+            profile:prefs.profile,
+            reserves,
+            boosts:typeof Boosts!=='undefined'?Boosts.Sums||{}:{},
+            maxDepth:2
+        });
     }
 
     function render() {
@@ -480,6 +510,48 @@
                 panel.append(hint(reason));
             }
             panel.append(hint('POZOR: Jde o rozpočtovou simulaci, ne optimalizované pořadí akcí. Nabídka, prostor, cesty, délka výstavby a zbývající QI čas nejsou zatím ověřené.'));
+        }
+
+        panel.append(section('Dvou-krokové ekonomické scénáře'));
+        const sequence=sequencePreview();
+        if(!sequence) {
+            panel.append(hint('Pro navazující rozhodování chybí aktuální mapa nebo sklad.'));
+        } else if(sequence.plans.length===0) {
+            panel.append(hint('V rozsahu dvou kroků nebyl nalezen pozitivní ekonomický scénář splňující známá omezení.'));
+        } else {
+            panel.append(hint('Porovnání několika variant podle heuristického skóre. Prostor, cesty, nabídka staveb, výrobní časy a ceny uzlů nejsou plně ověřené.'));
+            const ranked=$('<ol class="qi-support-scenarios"/>');
+            for(const [index,plan] of sequence.plans.slice(0,3).entries()) {
+                const item=$('<li/>');
+                item.append($('<strong/>').text('Varianta '+(index+1)+
+                    ' · skóre '+numberText(plan.heuristicScore)));
+                item.append($('<p/>').text(plan.steps.map(step=>
+                    (step.type==='sell'?'Prodat ':'Postavit ')+step.building
+                ).join(' → ')));
+                const costs=Object.entries(plan.spent).map(([key,value])=>
+                    key.replace('guild_raids_','')+': '+numberText(value)).join(', ');
+                if(costs)item.append($('<small/>').text('Celková investice: '+costs));
+                const produced=Object.entries(plan.productionDeltaPerCycle)
+                    .filter(([key,value])=>value!==0)
+                    .map(([key,value])=>key.replace('guild_raids_','')+': '+
+                        (value>=0?'+':'')+numberText(Math.abs(value))+
+                        (value<0?' (pokles)':' (přírůstek)')).join(', ');
+                if(produced)item.append($('<small/>').text('Odhad čisté změny výnosu za cyklus: '+produced));
+                item.append($('<small/>').text(
+                    'Minimum volné populace během kroků: '+
+                    numberText(plan.minFreePopulation)+
+                    ' · euforie nejméně '+plan.minEuphoriaFactor.toLocaleString('cs-CZ')+'×'));
+                if(prefs.profile==='donor' &&
+                    plan.donorUnallocatedAfterManualReserve) {
+                    const remain=Object.entries(plan.donorUnallocatedAfterManualReserve)
+                        .map(([key,value])=>key.replace('guild_raids_','')+
+                            ': '+numberText(value)).join(', ');
+                    item.append($('<small/>').text('Zbytek nad ručně chráněnou rezervou: '+
+                        remain+' (není schváleno k darování)'));
+                }
+                ranked.append(item);
+            }
+            panel.append(ranked);
         }
 
         if (!state.running) {
