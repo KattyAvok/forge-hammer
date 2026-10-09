@@ -101,9 +101,10 @@
         newState.lastBuilding=key;
         return newState;
     }
-    function applySell(state,key,def) {
-        const fx=advisor.effects(def);
-        if(!fx)return null;
+    function applySell(state,key,def,boosts={}) {
+        const info=effectAndCycle(def,state.stock,boosts);
+        if(!info)return null;
+        const fx=info.e;
         // Selling a building with any QI bonus is unpriced risk.
         if(fx.bonuses.some(b=>b.value!==0))return null;
         const n=snapshot(state),pop=fx.population,h=fx.euphoria;
@@ -116,6 +117,8 @@
         const ratio=factor(joy,cap);
         if(ratio===null||ratio+1e-9<n.floor)return null;
         n.stock[available]=av;n.stock[total]=cap;n.stock[happy]=joy;
+        // Lost production must be subtracted from prospective gains.
+        if(info.cycleKnown)addDelta(n.increments,info.yieldDelta,-1);
         n.minFreePopulation=Math.min(n.minFreePopulation,av);
         n.minEuphoriaFactor=Math.min(n.minEuphoriaFactor,ratio);
         n.usedOriginals.add(key);
@@ -231,18 +234,22 @@
         const all=[],first=[];
         for(const build of buildingOptions) {
             const n=applyBuild(starts,build.key,build.def,allowedReserves,boosts);
-            if(n)first.push({state:n,kind:'build',geometryStatus:
-                geometry.probeFit(geometryIndex,build.def,2).status});
+            if(n) {
+                const fit=geometry.probeFit(geometryIndex,build.def,2);
+                if(fit.status!=='geometry-no-fit')
+                    first.push({state:n,kind:'build',geometryStatus:fit.status});
+            }
         }
         // One demolition followed immediately by a supported purchase.
         for(const sell of sellers) {
-            const before=applySell(starts,sell.key,sell.def);
+            const before=applySell(starts,sell.key,sell.def,boosts);
             if(!before)continue;
             for(const build of buildingOptions) {
                 const n=applyBuild(before,build.key,build.def,allowedReserves,boosts);
                 if(!n)continue;
                 const fit=geometry.probeFit(geometryIndex,build.def,2,
                     sell.rect?[sell.rect]:[]);
+                if(fit.status==='geometry-no-fit')continue;
                 first.push({state:n,kind:'replace',geometryStatus:fit.status});
                 if(first.length>=maxSearch)break;
             }
@@ -288,6 +295,7 @@
                 'shop-unlocks-unverified','road-levels-unverified',
                 'game-placement-unverified','cycle-time-unverified',
                 'node-costs-unverified','future-production-not-spent',
+                'existing-production-euphoria-rebalance-unmodeled',
                 'donation-not-safe-without-plan-and-node'
             ],
             gameActionsPerformed:false};
