@@ -54,7 +54,7 @@ test('candidate builds are not falsely declared buildable without verified cost 
     const defs={bakery:def('Bakery','production',-50,0,{guild_raids_supplies:200})};
     const c=advisor.rankBuilds(defs,'donor','supplies',400,800,stock);
     assert.equal(c.length,1);
-    assert.equal(c[0].affordable,false===null?false:null); // Missing game cost
+    assert.equal(c[0].affordable,null); // Missing game cost
     assert.equal(c[0].verifiedAvailability,false);
     assert.equal(c[0].verifiedLayout,false);
 });
