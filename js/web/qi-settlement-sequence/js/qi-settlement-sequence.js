@@ -33,7 +33,8 @@
             ratio<=1.2?1:ratio<=1.4?1.1:ratio<2?1.2:1.5;
     };
     const snapshot=s=>({...s,stock:{...s.stock},increments:{...s.increments},
-        totalCosts:{...s.totalCosts},steps:s.steps.slice(),
+        totalCosts:{...s.totalCosts},protectedReserves:{...s.protectedReserves},
+        steps:s.steps.slice(),
         usedOriginals:new Set(s.usedOriginals)});
     function effectAndCycle(def,stock,boosts) {
         const e=advisor.effects(def);
@@ -205,6 +206,12 @@
             projectedProductionTime:'unverified',
             placementEvidence:geoEvidence,
             donationSafetyVerified:false,
+            donorUnallocatedAfterManualReserve:profile==='donor' &&
+                valid(s.protectedReserves[money])&&valid(s.protectedReserves[supplies]) ?
+                {
+                    [money]:Math.max(0,s.stock[money]-s.protectedReserves[money]),
+                    [supplies]:Math.max(0,s.stock[supplies]-s.protectedReserves[supplies])
+                } : null,
             executable:false
         };
     }
@@ -227,6 +234,7 @@
             allowedReserves[k]=v;
         }
         const starts={stock:{...stock},initial:{...stock},
+            protectedReserves:{...allowedReserves},
             floor,minFreePopulation:stock[available],minEuphoriaFactor:floor,
             increments:{},qa:{},totalCosts:{},steps:[],usedOriginals:new Set()};
         const buildingOptions=candidateDefinitions(definitions,profile,stock,boosts);
@@ -288,8 +296,9 @@
             inspectedOriginalBuildings:sellers.length,
             consideredVariants:first.length+all.length,
             plans:top,
-            reserveMode:moneyKeys.every(k=>valid(reserves[k]))?
-                'all-cost-reserves-specified':'partial-or-gross',
+            reserveMode:profile!=='donor'?'not-applicable':
+                valid(reserves[money])&&valid(reserves[supplies])?
+                    'manual-protected':'partial-or-gross',
             ranking:'dimensionless-heuristic; not validated ROI or global optimum',
             blockers:[
                 'shop-unlocks-unverified','road-levels-unverified',
