@@ -569,6 +569,9 @@ test('one compact report includes protected near-collection advice without leaki
 test('live-style synthetic QI city accepts one concise consistency report without source IDs',()=>{
     const t=setup();
     t.FH.ActiveMap='guild_raids';
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day1a',
+            reserveMoney:'',reserveSupplies:''}));
     t.FH.Main.CityEntities.bakery={
         name:'Bakery',type:'production',components:{AllAge:{
             placement:{size:{x:2,y:2}},
