@@ -270,11 +270,31 @@
             productionCycles:full.metadata.productionCycleEstimates.slice(0,6),
             sequencePreview:(()=>{
                 const p=sequencePreview();
-                return p?{status:p.status,planCount:p.plans.length,
+                if(!p)return null;
+                const calibration=timeEvidence();
+                const hours=remainingHours();
+                const bound=p.plans.length?
+                    globalThis.QISettlementTiming.theoreticalPlanHorizon(
+                        p.plans[0],hours,calibration):null;
+                return {
+                    status:p.status,planCount:p.plans.length,
                     inspectedOriginalBuildings:p.inspectedOriginalBuildings,
                     candidateDefinitions:p.candidateDefinitions,
                     depth:p.sequenceDepth,ranking:p.ranking,
-                    blockers:p.blockers}:null;
+                    timingEvidence:{
+                        status:calibration.status,unit:calibration.unit,
+                        samples:calibration.samples,
+                        distinctDurations:calibration.distinctDurations,
+                        timeUnitVerified:calibration.timeUnitVerified
+                    },
+                    horizonProjection:bound?{
+                        status:bound.status,
+                        unitHypothesis:bound.unitHypothesis||null,
+                        constructionTimeVerified:false,
+                        spendableGains:null
+                    }:null,
+                    blockers:p.blockers
+                };
             })(),
             evidence:{
                 status:contract.status,eventCounts:contract.eventCounts,
@@ -284,6 +304,17 @@
             },
             openGates:full.openGates
         },null,2);
+    }
+
+    function timeEvidence() {
+        return globalThis.QISettlementTiming.inspect(
+            state.map?.entities,FH.Main?.CityEntities);
+    }
+    function remainingHours() {
+        const end=state.seasonEnd;
+        if(typeof end!=='number'||end<=1000000000||end>=9999999999)
+            return null;
+        return Math.max(0,(end*1000-Date.now())/3600000);
     }
 
     function sequencePreview() {
@@ -552,6 +583,28 @@
                 ranked.append(item);
             }
             panel.append(ranked);
+            const hours=remainingHours();
+            const evidence=timeEvidence();
+            if(hours!==null) {
+                panel.append(row('Zbývající čas QI (odhad)',
+                    numberText(Math.floor(hours))+' h'));
+                if(evidence.status!=='unit-corroborated') {
+                    panel.append(hint('Délku výrobního cyklu zatím nelze s dostatečnou jistotou kalibrovat vůči času hry. Proto nepočítám hodinovou návratnost ani nepovažuji výrobu za okamžitě dostupné zásoby.'));
+                }else {
+                    const firstPlan=sequence.plans[0];
+                    const projection=globalThis.QISettlementTiming.theoreticalPlanHorizon(
+                        firstPlan,hours,evidence);
+                    if(projection.status==='optimistic-upper-bound') {
+                        const entries=Object.entries(projection.possibleResourceDelta)
+                            .map(([key,value])=>key.replace('guild_raids_','')+
+                                ': '+(value>=0?'+':'−')+numberText(Math.abs(value)));
+                        if(entries.length)
+                            panel.append(hint('Hypotetický účinek výroby při okamžitém dokončení staveb a bez prostojů: '+
+                                entries.join(', ')+'. Není to dostupný sklad ani bezpečný výnos.'));
+                    } else
+                        panel.append(hint('Zatím chybí některé časy výrobních možností; hodinový výhled proto nelze sestavit.'));
+                }
+            }
         }
 
         if (!state.running) {
