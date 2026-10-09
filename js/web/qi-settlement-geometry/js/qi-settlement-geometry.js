@@ -148,8 +148,15 @@
         };
     }
     function summarize(index) {
-        if(index?.status!=='geometry-indexed')
-            return {status:index?.status||'unknown',reason:index?.reason||'unknown'};
+        if(index?.status!=='geometry-indexed') {
+            const result={status:index?.status||'unknown',reason:index?.reason||'unknown'};
+            const counts=['outsideTiles','areaTiles','buildingTiles','buildingsScanned',
+                'baseAreaCount','expansionAreaCount','unknownBuildings','overlapTiles'];
+            for(const name of counts)if(Number.isSafeInteger(index?.[name])&&index[name]>=0)
+                result[name]=index[name];
+            if(index?.outsideGroups)result.outsideGroups={...index.outsideGroups};
+            return result;
+        }
         return {status:index.status,areaCount:index.areaCount,
             totalTiles:index.totalTiles,occupiedTiles:index.occupiedTiles,
             freeTiles:index.freeTiles,streetTiles:index.streetTiles,
