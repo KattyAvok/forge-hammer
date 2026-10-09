@@ -273,25 +273,6 @@
             panel.append(hint('POZOR: Jde o rozpočtovou simulaci, ne optimalizované pořadí akcí. Nabídka, prostor, cesty, délka výstavby a zbývající QI čas nejsou zatím ověřené.'));
         }
 
-        panel.append(section('Referenční návod — volitelná etapa'));
-        const strategyData = globalThis.QISettlementStrategies;
-        const stagePicker = $('<select id="qi-support-stage"/>');
-        for (const code of strategyData.stages)
-            stagePicker.append($('<option/>').attr('value',code).text(strategyData.stageNames[code]));
-        stagePicker.val(preferences.stage);
-        stagePicker.on('change', () => {
-            save({...settings(),stage:String(stagePicker.val())});
-            render();
-        });
-        panel.append($('<label class="qi-support-stage"/>')
-            .text('Etapa: ').append(stagePicker));
-        const steps = $('<ol class="qi-support-steps"/>');
-        for (const instruction of strategyData.getSteps(preferences.profile, preferences.stage))
-            steps.append($('<li/>').text(instruction));
-        panel.append(steps);
-        panel.append(hint('Zdroj: hráčský návod ' + strategyData.version +
-            '. Stav kroků a ceny nejsou automaticky ověřené; etapu vybíráš ručně.'));
-
         if (!state.running) {
             panel.append(hint('Aktivní QI běh zatím nebyl potvrzen. Vstup do QI a znovu otevři panel.'));
         } else {
@@ -373,6 +354,25 @@
             panel.append(hint('Bojové jednotky, typy nepřátel a bojové bonusy zatím nemáme ověřené. Dokud je nezískáme, panel nebude doporučovat nábor ani bojovou přestavbu.'));
             panel.append(row('Jednotky / bojové bonusy', 'nezjištěno'));
         }
+        panel.append(section('Referenční návod — volitelná etapa'));
+        const strategyData = globalThis.QISettlementStrategies;
+        const stagePicker = $('<select id="qi-support-stage"/>');
+        for (const code of strategyData.stages)
+            stagePicker.append($('<option/>').attr('value',code).text(strategyData.stageNames[code]));
+        stagePicker.val(preferences.stage);
+        stagePicker.on('change', () => {
+            save({...settings(),stage:String(stagePicker.val())});
+            render();
+        });
+        panel.append($('<label class="qi-support-stage"/>')
+            .text('Etapa: ').append(stagePicker));
+        const steps = $('<ol class="qi-support-steps"/>');
+        for (const instruction of strategyData.getSteps(preferences.profile, preferences.stage))
+            steps.append($('<li/>').text(instruction));
+        panel.append(steps);
+        panel.append(hint('Zdroj: hráčský návod ' + strategyData.version +
+            '. Stav kroků a ceny nejsou automaticky ověřené; etapu vybíráš ručně.'));
+
         panel.append(hint('Pouze informační panel. Neprovádí žádné akce ve hře.'));
         root.append(panel);
     }
