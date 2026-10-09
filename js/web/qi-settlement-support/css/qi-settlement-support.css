@@ -26,3 +26,6 @@
 #qiSettlementSupport .qi-support-scenarios strong { display:block; }
 #qiSettlementSupport .qi-support-scenarios p { margin:3px 0; }
 #qiSettlementSupport .qi-support-scenarios small { display:block; opacity:.8; margin:3px 0; }
+
+#qiSettlementSupport .qi-support-blocked { margin:5px 0 12px; padding-left:20px; opacity:.86; }
+#qiSettlementSupport .qi-support-blocked li { margin:5px 0; }
