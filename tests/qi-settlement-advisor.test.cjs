@@ -92,7 +92,9 @@ test('an actual selling option must remain un-actionable without placement check
         definitions:{m:d}
     });
     const selling=result.recommendations.find(x=>x.code==='review-sell');
-    assert.equal(selling,undefined); // not an explicitly recognized alias/building
+    assert.ok(selling);
+    assert.equal(selling.actionable,false);
+    assert.match(selling.limitations,/NEPRODÁVAT/);
 });
 
 test('donor recommendations never claim surpluses without manual reserves',()=>{
