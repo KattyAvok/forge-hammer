@@ -232,8 +232,9 @@ test('Clapboard high score cannot outrank affordable Bakery in recommendations',
     }}};
     const base={...stock,guild_raids_money:300000,guild_raids_supplies:150000,
         guild_raids_chrono_alloy:1200};
-    const result=advisor.advise({profile:'fighter',stock:base,
-        entities:[{cityentity_id:'bakery'}],definitions:{clapboard,bakery}});
+    const result=advisor.advise({profile:'donor',stock:base,
+        entities:[{cityentity_id:'bakery'}],definitions:{clapboard,bakery},
+        reserves:{guild_raids_money:0,guild_raids_supplies:0}});
     assert.equal(result.recommendations.some(x=>x.code==='build-candidate' &&
         x.candidate.name==='Clapboard House'),false);
     const bakerySuggestion=result.recommendations.find(x=>x.code==='build-candidate' &&
