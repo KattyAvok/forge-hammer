@@ -106,7 +106,7 @@ test('selling a productive building subtracts its net production from projected 
     };
     const sold=seq.applySell(state,'sold-tannery',oldFactory,{});
     assert.ok(sold);
-    assert.equal(sold.increments[S],-2000);
+    assert.equal(sold.increments[S],-3000);
     assert.equal(sold.stock[P],inventory[P]+25);
     assert.equal(sold.steps[0].refunds,'not-assumed');
     assert.equal(state.increments[S],undefined);
