@@ -20,10 +20,10 @@ function def(name,price,pop,happiness,{qa=false,area=9}={}){
     };
 }
 const stock={
-    guild_raids_money:275250,guild_raids_supplies:148780,
-    guild_raids_chrono_alloy:3731,guild_raids_rope:76,
-    guild_raids_total_population:1030,guild_raids_population:210,
-    guild_raids_happiness:2160
+    guild_raids_money:300000,guild_raids_supplies:150000,
+    guild_raids_chrono_alloy:4000,guild_raids_rope:80,
+    guild_raids_total_population:1000,guild_raids_population:200,
+    guild_raids_happiness:2100
 };
 
 test('Bakery quoted from live price fixture: balances, current and future population',()=>{
@@ -34,11 +34,11 @@ test('Bakery quoted from live price fixture: balances, current and future popula
     const q=simulator.quoteBuild({stock,definition:bakery});
     assert.equal(q.financiallyCovered,true);
     assert.equal(q.populationViable,true);
-    assert.equal(q.afterCost.guild_raids_money,191250);
-    assert.equal(q.afterCost.guild_raids_supplies,48780);
-    assert.equal(q.afterCost.guild_raids_chrono_alloy,2731);
-    assert.equal(q.duringConstruction.availablePopulation,110);
-    assert.equal(q.afterCompletion.availablePopulation,110);
+    assert.equal(q.afterCost.guild_raids_money,216000);
+    assert.equal(q.afterCost.guild_raids_supplies,50000);
+    assert.equal(q.afterCost.guild_raids_chrono_alloy,3000);
+    assert.equal(q.duringConstruction.availablePopulation,100);
+    assert.equal(q.afterCompletion.availablePopulation,100);
     assert.equal(q.actionable,false);
     assert.equal(q.layoutVerified,false);
 });
@@ -49,11 +49,11 @@ test('donor reserve makes otherwise affordable Bakery financially unavailable',(
         guild_raids_chrono_alloy:1000
     },-100,0);
     const q=simulator.quoteBuild({stock,definition:bakery,reserves:{
-        guild_raids_money:200000,guild_raids_supplies:100000
+        guild_raids_money:220000,guild_raids_supplies:100000
     }});
     assert.equal(q.financiallyCovered,false);
-    assert.equal(q.shortages.guild_raids_money,8750);
-    assert.equal(q.shortages.guild_raids_supplies,51220);
+    assert.equal(q.shortages.guild_raids_money,4000);
+    assert.equal(q.shortages.guild_raids_supplies,50000);
     assert.equal(q.actionable,false);
 });
 
@@ -64,7 +64,7 @@ test('Clapboard fails actual supplies even with enough money',()=>{
     },150,0);
     const q=simulator.quoteBuild({stock,definition:clapboard});
     assert.equal(q.financiallyCovered,false);
-    assert.equal(q.shortages.guild_raids_supplies,51220);
+    assert.equal(q.shortages.guild_raids_supplies,50000);
 });
 
 test('population constraint blocks immediate recruitment or construction',()=>{
@@ -89,9 +89,9 @@ test('replacement releases land and consumes benefits in correct intermediate or
     const newBuilding=def('Alchemist',{guild_raids_money:50400,
         guild_raids_supplies:60000,guild_raids_chrono_alloy:200},-150,0,{area:9});
     const q=simulator.quoteReplacement({stock,removed:church,added:newBuilding});
-    assert.equal(q.afterSale.euphoria,1160);
-    assert.equal(q.afterSale.availablePopulation,210);
-    assert.equal(q.build.duringConstruction.availablePopulation,60);
+    assert.equal(q.afterSale.euphoria,1100);
+    assert.equal(q.afterSale.availablePopulation,200);
+    assert.equal(q.build.duringConstruction.availablePopulation,50);
     assert.equal(q.areaChange,7);
     assert.equal(q.modeledConstraintsPass,true);
     assert.equal(q.actionable,false);
