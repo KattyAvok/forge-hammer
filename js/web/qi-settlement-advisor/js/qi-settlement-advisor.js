@@ -242,6 +242,34 @@
             pricedRecommendationsPossible:priced>0};
     }
 
+    // Read-only player-facing sample of QI building costs for visual
+    // cross-check against the construction menu. No entity identifiers,
+    // player data or map coordinates leave this function.
+    function priceSamples(definitions) {
+        if(!definitions||typeof definitions!=='object')return null;
+        const samples=[], counts={priced:0,ambiguous:0,unknown:0};
+        for(const [id,def] of Object.entries(definitions)){
+            if(!def||!alias(def.name,id))continue;
+            const e=effects(def);
+            const res=def.components?.AllAge?.staticResources?.resources?.resources||{};
+            if(!e||!Object.keys(res).some(key=>key.startsWith('guild_raids_')) &&
+                !Object.keys(e.yieldPerCycle).some(key=>key.startsWith('guild_raids_')))continue;
+            const evidence=priceEvidence(def);
+            if(evidence.status==='metadata-candidate')counts.priced++;
+            else if(evidence.status==='ambiguous')counts.ambiguous++;
+            else counts.unknown++;
+            if(samples.length>=16)continue;
+            const name=String(def.name||'').slice(0,90);
+            if(!name)continue;
+            samples.push({
+                name,priceStatus:evidence.status,
+                source:evidence.source,
+                costs:evidence.cost ? {...evidence.cost} : null
+            });
+        }
+        return {schemaVersion:1,summary:counts,samples};
+    }
+
     // Passive schema discovery: report only structural paths and coverage.
     // The original metadata is accessed in memory, never persisted or exported.
     // Dynamic property names and building IDs are converted to [key] or [item].
@@ -432,7 +460,7 @@
         result.recommendations.sort((a,b)=>b.priority-a.priority);
         return result;
     }
-    const api=Object.freeze({features,inferPhase,moneyCost,priceEvidence,effects,size,focus,rankBuilds,catalogCoverage,priceSchemaDiscovery,advise});
+    const api=Object.freeze({features,inferPhase,moneyCost,priceEvidence,effects,size,focus,rankBuilds,catalogCoverage,priceSamples,priceSchemaDiscovery,advise});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementAdvisor=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
