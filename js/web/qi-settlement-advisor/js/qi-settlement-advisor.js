@@ -381,7 +381,7 @@
         const phase=inferPhase(f,unlockedAreaCount);
         const observed=stock||{};
         const result={phase, focus:focus(profile,observed,planCost),
-            recommendations:[], blockedBuilds:[], blockers:[], counts:f?.counts||{}, 
+            recommendations:[], grossBuilds:[], blockedBuilds:[], blockers:[], counts:f?.counts||{}, 
             dataQuality:{hasMap:!!f,missingDefinitions:f?.unknown??null,
                 hasStock:RESOURCE_IDS.every(x=>qty(observed[x]))}};
         const add=(code,priority,title,why,limitations,extra={})=>
@@ -467,6 +467,23 @@
         // as the next recommended action.
         const eligible=priced.filter(candidate=>
             candidate.affordable===true && candidate.populationOK===true);
+        // Donor without a complete reserve can still compare what the *raw
+        // inventory* covers. This is NOT approval to invest or donate.
+        const grossOnly=profile==='donor' &&
+            (!qty(reserves?.guild_raids_money) ||
+             !qty(reserves?.guild_raids_supplies));
+        if(grossOnly) {
+            result.grossBuilds=priced.filter(candidate=>
+                candidate.grossAffordable===true &&
+                candidate.populationOK===true)
+                .slice(0,6).map(candidate=>({
+                    name:candidate.name,
+                    cost:{...candidate.cost},
+                    populationOK:true,
+                    reserveVerified:false,
+                    actionable:false
+                }));
+        }
         result.blockedBuilds=priced
             .filter(candidate=>candidate.affordable!==true ||
                 candidate.populationOK!==true)
@@ -481,8 +498,14 @@
             }));
         if(ranked.length && priced.length===0)
             result.blockers.push('Návrhy konkrétních staveb byly potlačeny: aktuální stavební ceny QI nejsou ověřené.');
-        else if(priced.length && eligible.length===0)
-            result.blockers.push('Žádná kandidátní stavba nesplňuje současně zdrojová, rezervní a populační omezení.');
+        else if(priced.length && eligible.length===0) {
+            if(grossOnly && result.grossBuilds.length)
+                result.blockers.push('Rozpočtově kryté stavby existují, ale bez úplných rezerv nelze potvrdit bezpečné použití zdrojů.');
+            else if(grossOnly)
+                result.blockers.push('Ani předběžný rozpočet nevykazuje finančně a populačně dostupnou kandidátní stavbu.');
+            else
+                result.blockers.push('Žádná kandidátní stavba nesplňuje současně zdrojová, rezervní a populační omezení.');
+        }
         for(const candidate of eligible.slice(0,3)){
             const costText=candidate.cost?
                 'Cena z metadat (zatím neověřena v nabídce): '+Object.entries(candidate.cost).map(([k,v])=>k.replace('guild_raids_','')+' '+v).join(', ')+'.' :
