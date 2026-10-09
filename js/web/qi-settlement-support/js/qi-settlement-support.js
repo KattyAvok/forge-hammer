@@ -7,6 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
+    const BUILD = '1.8.1.1-qi-price-probe';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     const state = {
@@ -119,6 +120,7 @@
         });
         profileRow.append(profile);
         panel.append(profileRow);
+        panel.append($('<p class="qi-support-build"/>').text('Vývojové sestavení: '+BUILD));
 
         panel.append(section('Automatická analýza aktuální osady'));
         const decision=advice(preferences.profile,preferences);
@@ -358,6 +360,7 @@
             globalThis.QISettlementAdvisor.priceSchemaDiscovery(FH.Main?.CityEntities) : null,
         // Snapshot excludes internal world/player identifiers and arbitrary game responses.
         Status: () => ({
+            build:BUILD,
             running:state.running, difficulty:state.difficulty,
             hasStock:!!state.stock, mapStale:state.mapStale,
             hasMap:!!state.map, selectedProfile:settings().profile,
