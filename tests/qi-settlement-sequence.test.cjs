@@ -73,7 +73,7 @@ test('protected Donor money/supplies reserves constrain all steps',()=>{
         assert.ok(p.remaining[M]>=120000);
         assert.ok(p.remaining[S]>=130000);
     }
-    assert.equal(r.reserveMode,'partial-or-gross');
+    assert.equal(r.reserveMode,'manual-protected');
 });
 test('spent resources are not replenished with uncollected production',()=>{
     const defs={printer};
