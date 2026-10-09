@@ -99,12 +99,17 @@ test('a culture demolition is vetoed when it reduces current euphoria multiplier
     assert.equal(r.plans.some(p=>p.steps.some(x=>x.type==='sell'&&x.building==='Church')),false);
 });
 test('selling a productive building subtracts its net production from projected gain',()=>{
-    const r=explore({stock:{...inventory,[S]:100000},
-        entities:[{id:10,cityentity_id:'oldFactory',x:0,y:0}],
-        definitions:{printer,oldFactory}});
-    for(const p of r.plans)if(p.steps.some(x=>x.type==='sell')){
-        assert.ok((p.productionDeltaPerCycle[S]||0)<0);
-    }
+    const state={
+        stock:{...inventory},initial:{...inventory},protectedReserves:{},
+        floor:1.5,minFreePopulation:inventory[P],minEuphoriaFactor:1.5,
+        increments:{},qa:{},totalCosts:{},steps:[],usedOriginals:new Set()
+    };
+    const sold=seq.applySell(state,'sold-tannery',oldFactory,{});
+    assert.ok(sold);
+    assert.equal(sold.increments[S],-2000);
+    assert.equal(sold.stock[P],inventory[P]+25);
+    assert.equal(sold.steps[0].refunds,'not-assumed');
+    assert.equal(state.increments[S],undefined);
 });
 test('selling a QI-boosting building is excluded because the lost bonus is unpriced',()=>{
     const guarded=def('Gallows','culture',0,20,{[M]:36000},{},
