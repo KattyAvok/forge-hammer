@@ -177,7 +177,8 @@
             if(affordable) {
                 for(const [key,needed] of Object.entries(buildPrice)){
                     const held=stock?.[key];
-                    const reserved=reserves?.[key] ?? 0;
+                    const reserved=Object.prototype.hasOwnProperty.call(reserves||{},key)
+                        ? reserves[key] : 0;
                     if(!qty(held)||!qty(reserved)){
                         affordable=null;continue;
                     }
