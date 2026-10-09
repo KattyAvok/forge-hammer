@@ -31,7 +31,39 @@ Run `QISettlementSupport.PriceDiscovery()` in the game console, inside the QI se
 
 The goal is to establish whether modern metadata exposes construction prices at another nested path. If `definitionsWithQIPriceTokens` remains zero, the next narrowly scoped investigation is to inspect the **existing build-menu response schema**, still without making new game requests. Only after confirming the path may the optimizer use it to decide `sell -> build -> collect/donate` and compute budget/time feasibility.
 
-**Validation:** 47/47 isolated JS scenarios PASS after adding schema-discovery tests. No new Chrome integration test or full Node CLI run yet.
+**Validation:** 48/48 isolated JS scenarios PASS after adding schema-discovery tests. No new Chrome integration test or full Node CLI run yet.
+
+## 2026-10-09 Chrome stale-build fix
+The user successfully loaded the automated Donor UI, but `QISettlementSupport.PriceDiscovery()`
+threw `TypeError: ... is not a function`. The feature **does exist in branch source**,
+so the loaded page JavaScript is behind the branch. The previous extension
+manifest stayed at `1.8.1`, and injected modules are fetched with `?v=1.8.1`,
+making a cached older build a plausible cause; an older unpacked local folder is
+another plausible cause.
+
+The development manifest is now `1.8.1.1` to change injected resource URLs.
+The panel and `QISettlementSupport.Status()` expose build marker
+`1.8.1.1-qi-price-probe`. The advisor also suppresses unpriced building
+suggestions: without a verified price, footprint and yields do not make a
+proposed Bakery/Clapboard/Frame House an optimized investment. One extra
+regression test ensures unpriced buildings do not appear as ranked build
+suggestions.
+
+**Correct replacement procedure:**
+1. Unzip the latest branch archive into a NEW directory with its own `manifest.json`.
+2. In `chrome://extensions`, remove or disable the previous development
+   installation and load the new unpacked directory, or deliberately replace
+   all files of the currently loaded directory and press its Reload icon.
+3. Confirm version `1.8.1.1` in the Chrome extensions page.
+4. Completely reload the Forge of Empires tab (the already-injected JS
+   survives a mere extension reload until the page itself is refreshed).
+5. Enter QI; run `Object.keys(QISettlementSupport)`, then
+   `QISettlementSupport.Status().build`. Expect `PriceDiscovery` and
+   `1.8.1.1-qi-price-probe`.
+6. Only then call `QISettlementSupport.PriceDiscovery()`.
+
+48/48 isolated JS checks passed against fetched branch sources. These are
+not Chrome integration or standalone Node CLI results.
 
 ## NOT yet implemented or proven
 - A full multi-step search/optimization with economic payback and dynamic sell/build/rush scheduling.
@@ -49,7 +81,7 @@ Run in a checked-out working branch:
 node --test tests/qi-settlement-*.test.cjs
 ```
 
-The current five test files passed **47/47 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
+The current five test files passed **48/48 scenarios in an isolated JavaScript execution harness**, using actual GitHub-fetched sources (not full browser or Node CLI acceptance).
 
 After loading the unpacked development extension, enter the QI settlement; read the panel's **Automatická analýza aktuální osady** section and then in the developer console call:
 
