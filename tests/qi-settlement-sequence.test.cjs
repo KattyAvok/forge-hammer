@@ -210,3 +210,41 @@ test('unknown map geometry does not masquerade as verified placement',()=>{
     assert.ok(result.plans.every(p=>p.placementEvidence==='unknown'));
     assert.ok(result.plans.every(p=>p.executable===false));
 });
+
+test('two sales can release adjoining footprints for one larger QI producer',()=>{
+    const wide=def('Wide Printer','production',-30,0,
+        {[M]:50000,[S]:40000}, {[M]:7000});
+    wide.components.AllAge.placement.size={x:4,y:2};
+    const defs={wide,oldFactory};
+    const entities=[
+        {id:1,cityentity_id:'oldFactory',x:0,y:0,state:{__class__:'IdleState'}},
+        {id:2,cityentity_id:'oldFactory',x:2,y:0,state:{__class__:'IdleState'}}
+    ];
+    const index=geometry.indexMap([{x:0,y:0,width:4,length:2}],entities,defs);
+    assert.equal(index.status,'geometry-indexed');
+    const r=seq.explore({stock:inventory,entities,definitions:defs,
+        geometryIndex:index,profile:'donor'});
+    const found=r.plans.find(p=>p.steps.length===3&&
+        p.steps[0].type==='sell'&&p.steps[1].type==='sell'&&
+        p.steps[2].type==='build'&&p.steps[2].building==='Wide Printer');
+    assert.ok(found);
+    assert.equal(found.placementEvidence,'geometry-sequence-fit');
+    assert.equal(found.steps.filter(x=>x.type==='sell').length,2);
+    assert.ok(r.doubleSalePairsInspected>=1);
+    assert.equal(found.executable,false);
+    assert.equal(r.gameActionsPerformed,false);
+});
+test('a second demolition is blocked if interim free population goes negative',()=>{
+    const wide=def('Wide Printer','production',-30,0,
+        {[M]:50000,[S]:40000}, {[M]:7000});
+    wide.components.AllAge.placement.size={x:4,y:2};
+    const defs={wide,house};
+    const entities=[
+        {id:1,cityentity_id:'house',x:0,y:0,state:{__class__:'IdleState'}},
+        {id:2,cityentity_id:'house',x:2,y:0,state:{__class__:'IdleState'}}
+    ];
+    const index=geometry.indexMap([{x:0,y:0,width:4,length:2}],entities,defs);
+    const r=seq.explore({stock:{...inventory,[P]:300},
+        entities,definitions:defs,geometryIndex:index});
+    assert.equal(r.plans.some(p=>p.steps.filter(x=>x.type==='sell').length===2),false);
+});
