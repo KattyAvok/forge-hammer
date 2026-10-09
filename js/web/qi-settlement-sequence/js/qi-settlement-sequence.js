@@ -195,7 +195,10 @@
         return benefit-0.03*investmentFraction;
     }
     function toOutput(s,profile,geoEvidence) {
-        const remaining=Object.fromEntries(moneyKeys
+        // Include every currency actually spent by this plan, not only
+        // money/supplies/Alloy. QI goods such as Rope must reconcile too.
+        const tracked=new Set([...moneyKeys,...Object.keys(s.totalCosts)]);
+        const remaining=Object.fromEntries([...tracked]
             .filter(k=>valid(s.stock[k])).map(k=>[k,s.stock[k]]));
         return {
             steps:s.steps,
