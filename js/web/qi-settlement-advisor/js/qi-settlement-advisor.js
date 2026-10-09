@@ -206,6 +206,88 @@
             pricedRecommendationsPossible:priced>0};
     }
 
+    // Passive schema discovery: report only structural paths and coverage.
+    // The original metadata is accessed in memory, never persisted or exported.
+    // Dynamic property names and building IDs are converted to [key] or [item].
+    function priceSchemaDiscovery(definitions) {
+        if (!definitions || typeof definitions !== 'object') return null;
+        const whitelist = new Set([
+            'requirements','cost','costs','resources','components','AllAge',
+            'buildingRequirements','construction','constructionCost','price',
+            'prices','purchase','purchasePrice','buyPrice','build','placement',
+            'options','products','playerResources','resourceCost',
+            'staticResources','production','reward','rewards','upgrade'
+        ]);
+        const tracked = new Set([
+            'guild_raids_money','guild_raids_supplies','guild_raids_chrono_alloy',
+            'guild_raids_rope','guild_raids_brick','guild_raids_bronze',
+            'guild_raids_gunpowder','guild_raids_honey'
+        ]);
+        const paths = new Map();
+        let examined = 0, withQIPriceTokens = 0, truncated = 0;
+        const hits = new Set();
+        for (const [id, def] of Object.entries(definitions)) {
+            if(!def || !alias(def.name,id))continue;
+            const e = effects(def);
+            if(!e)continue;
+            const base = def.components?.AllAge?.staticResources?.resources?.resources || {};
+            const hasQI = Object.keys(base).some(x=>x.startsWith('guild_raids_')) ||
+                Object.keys(e.yieldPerCycle).some(x=>x.startsWith('guild_raids_'));
+            if(!hasQI)continue;
+            examined++;
+            let nodes=0, found=false;
+            const seen=new WeakSet();
+            function walk(value, path, depth) {
+                if(!value || typeof value!=='object'||depth>10)return;
+                if(seen.has(value))return;
+                if(++nodes>4000){truncated++;return;}
+                seen.add(value);
+                if(Array.isArray(value)){
+                    for(let i=0;i<Math.min(value.length,32);i++)
+                        walk(value[i],path+'[item]',depth+1);
+                    return;
+                }
+                const ownKeys=Object.keys(value);
+                const matching=ownKeys.filter(k=>tracked.has(k) &&
+                    typeof value[k]==='number' && Number.isFinite(value[k]));
+                if(matching.length){
+                    const isPricing = /cost|requirement|price|purchase|buy|build/i.test(path);
+                    if(isPricing)found=true;
+                    const label=path || '[root]';
+                    const old=paths.get(label)||{
+                        path:label,definitions:0,occurrences:0,
+                        money:false,supplies:false,alloy:false,priceContext:false
+                    };
+                    if(!hits.has(id+'|'+label)) {
+                        old.definitions++; hits.add(id+'|'+label);
+                    }
+                    old.occurrences++;
+                    old.money ||= matching.includes('guild_raids_money');
+                    old.supplies ||= matching.includes('guild_raids_supplies');
+                    old.alloy ||= matching.includes('guild_raids_chrono_alloy');
+                    old.priceContext ||= isPricing;
+                    paths.set(label,old);
+                }
+                if(depth===10)return;
+                for(const key of ownKeys.slice(0,250)){
+                    if(typeof value[key]!=='object'||value[key]===null)continue;
+                    const segment=whitelist.has(key)?key:'[key]';
+                    walk(value[key],path?path+'.'+segment:segment,depth+1);
+                }
+            }
+            walk(def,'',0);
+            if(found)withQIPriceTokens++;
+        }
+        return {
+            schemaVersion:1,examinedDefinitions:examined,
+            definitionsWithQIPriceTokens:withQIPriceTokens,
+            truncatedTraversalCount:truncated,
+            paths:[...paths.values()].sort((a,b)=>
+                Number(b.priceContext)-Number(a.priceContext) ||
+                b.definitions-a.definitions || a.path.localeCompare(b.path)).slice(0,30)
+        };
+    }
+
     // Directional suggestions, not executable placements. The analyzer will
     // not recommend selling an occupied production/QA building as safe.
     function advise({profile='fighter',stock=null,entities=null,definitions=null,
@@ -309,7 +391,7 @@
         result.recommendations.sort((a,b)=>b.priority-a.priority);
         return result;
     }
-    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,rankBuilds,catalogCoverage,advise});
+    const api=Object.freeze({features,inferPhase,moneyCost,effects,size,focus,rankBuilds,catalogCoverage,priceSchemaDiscovery,advise});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementAdvisor=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
