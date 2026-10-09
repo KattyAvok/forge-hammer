@@ -9,3 +9,8 @@
 #qiSettlementSupport .qi-support-note { font-size:.92em; opacity:.85; margin:6px 0; }
 #qiSettlementSupport .qi-support-reserve { display:flex; align-items:center; justify-content:space-between; margin:7px 0; gap:12px; }
 #qiSettlementSupport .qi-support-reserve input { width:130px; box-sizing:border-box; border:1px solid #999; padding:4px; background:var(--black-50, #333); color:inherit; }
+
+#qiSettlementSupport .qi-support-stage { display:flex; align-items:center; gap:10px; margin:8px 0; }
+#qiSettlementSupport .qi-support-stage select { min-width:0; flex:1; color:inherit; background:var(--black-50, #333); border:1px solid #888; padding:4px; }
+#qiSettlementSupport .qi-support-steps { padding-left:22px; margin:8px 0; }
+#qiSettlementSupport .qi-support-steps li { margin:5px 0; }
