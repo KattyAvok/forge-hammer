@@ -400,3 +400,31 @@ test('one console report includes geometry, scenarios and metadata without leaki
     assert.equal(serialized.includes('524'),false);
     assert.equal(serialized.includes('525'),false);
 });
+
+test('single report includes passively observed QI map cost paths without numeric values',()=>{
+    const t=setup();
+    t.FH.ActiveMap='guild_raids';
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:1999999999,
+        raidInstance:{difficultyLevel:8}
+    });
+    t.send('GuildRaidsMapService','getOverview',{
+        secret_account_id:777777777,
+        nodes:[{nodeId:12345678,requirements:{
+            resources:{guild_raids_money:456123}
+        }}]
+    });
+    t.send('ArmyUnitManagementService','getArmyInfo',{
+        units:[{unitId:987654321,strength:90}]
+    });
+    t.api.ReportToConsole();
+    const data=JSON.parse(t.logs[t.logs.length-1]);
+    const contracts=data.metadata.contractEvidence;
+    assert.equal(contracts.eventCounts['qi-map-overview'],1);
+    assert.equal(contracts.eventCounts['qi-unit-info'],1);
+    assert.ok(contracts.structuralPaths.some(x=>x.path.includes('requirements')));
+    const content=JSON.stringify(data);
+    assert.equal(content.includes('456123'),false);
+    assert.equal(content.includes('777777777'),false);
+    assert.equal(content.includes('987654321'),false);
+});
