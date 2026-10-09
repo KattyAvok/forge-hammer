@@ -42,6 +42,7 @@
 	"qi-settlement-core",
 	"qi-settlement-diagnostics",
 	"qi-settlement-strategies",
+	"qi-settlement-advisor",
 	"qi-settlement-support",
 	"quests",
 	"gexstat",
