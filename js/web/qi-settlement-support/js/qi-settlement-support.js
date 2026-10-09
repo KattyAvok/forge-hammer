@@ -219,6 +219,32 @@
         };
     }
 
+    function sharingReport() {
+        const full=diagnosticReport();
+        const prod=full.metadata.production;
+        const contract=full.metadata.contractEvidence;
+        const paths=(contract.structuralPaths||[]).slice(0,12);
+        return JSON.stringify({
+            build:full.build,state:full.state,scenario:full.scenario,
+            geometry:full.geometry,
+            placementCandidates:full.placementCandidates.slice(0,6),
+            catalog:full.metadata.catalogCoverage,
+            production:prod?{
+                buildingsExamined:prod.buildingsExamined,options:prod.options,
+                inputs:prod.inputs,outputs:prod.outputs,
+                possibleDurations:prod.potentialDuration,
+                timeFields:prod.timeFields,
+                examples:prod.samples.slice(0,3)
+            }:null,
+            qiBoosts:full.metadata.qiBoosts,
+            evidence:{
+                status:contract.status,eventCounts:contract.eventCounts,
+                truncatedTraversals:contract.truncatedTraversals,paths
+            },
+            openGates:full.openGates
+        },null,2);
+    }
+
     function render() {
         const root = $('#' + ID + 'Body');
         if (!root.length) return;
