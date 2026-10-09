@@ -7,7 +7,7 @@
 (function () {
     'use strict';
     const ID = 'qiSettlementSupport';
-    const BUILD = '1.8.1.14-qi-spatial-sequences';
+    const BUILD = '1.8.1.15-qi-collection-opportunities';
     const STORAGE_PREFIX = 'QISettlementSupportSettingsV1_';
     const core = globalThis.QISettlementCore;
     let contracts = globalThis.QISettlementContracts.create();
