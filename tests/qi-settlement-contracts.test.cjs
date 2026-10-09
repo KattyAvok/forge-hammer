@@ -36,3 +36,27 @@ test('cycles and very large arrays remain bounded',()=>{
     assert.ok(p.report().structuralPaths.length<=35);
     assert.equal(JSON.stringify(p.report()).includes('"10"'),false);
 });
+
+test('QI nodes expose anonymous resource bundle counts without leaking numeric costs',()=>{
+    const p=contracts.create();
+    p.observe('qi-map-overview',{nodes:[
+        {id:'player-secret',choices:[{option:{requirements:{resources:{
+            guild_raids_money:424242,guild_raids_supplies:121212}}}}]},
+        {id:'another-secret',rewards:[{resources:{
+            guild_raids_rope:777777}}]},
+        {id:'no-resource',state:{active:true}}
+    ]});
+    const r=p.report().nodeResourceBundles;
+    assert.equal(r.nodesScanned,3);
+    assert.equal(r.nodesWithBundles,2);
+    assert.equal(r.bundles,2);
+    assert.equal(r.context.possibleCost,1);
+    assert.equal(r.context.reward,1);
+    assert.equal(r.keys.guild_raids_money,1);
+    assert.equal(r.keys.guild_raids_rope,1);
+    const text=JSON.stringify(r);
+    assert.equal(text.includes('424242'),false);
+    assert.equal(text.includes('121212'),false);
+    assert.equal(text.includes('777777'),false);
+    assert.equal(text.includes('player-secret'),false);
+});
