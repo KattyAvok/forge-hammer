@@ -304,6 +304,9 @@
                 return {
                     status:p.status,planCount:p.plans.length,
                     inspectedOriginalBuildings:p.inspectedOriginalBuildings,
+                    skippedBusySaleCandidates:p.skippedBusySaleCandidates,
+                    jointFootprintFitPlans:p.plans.filter(plan=>
+                        plan.placementEvidence==='geometry-sequence-fit').length,
                     candidateDefinitions:p.candidateDefinitions,
                     depth:p.sequenceDepth,ranking:p.ranking,
                     timingEvidence:{
@@ -621,6 +624,12 @@
                     'Minimum volné populace během kroků: '+
                     numberText(plan.minFreePopulation)+
                     ' · euforie nejméně '+plan.minEuphoriaFactor.toLocaleString('cs-CZ')+'×'));
+                const layoutText=plan.placementEvidence==='geometry-sequence-fit'?
+                    'Obě stavby se geometricky vejdou; cesty a nabídka neověřeny.' :
+                    plan.placementEvidence==='unknown'?
+                    'Plochu pro společnou výstavbu nelze z aktuální mapy potvrdit.' :
+                    'Prostorové podmínky nejsou potvrzené.';
+                item.append($('<small/>').text(layoutText));
                 if(preferences.profile==='donor' &&
                     plan.donorUnallocatedAfterManualReserve) {
                     const remain=Object.entries(plan.donorUnallocatedAfterManualReserve)
@@ -632,6 +641,14 @@
                 ranked.append(item);
             }
             panel.append(ranked);
+            const provenShape=sequence.plans.filter(plan=>
+                plan.placementEvidence==='geometry-sequence-fit').length;
+            if(provenShape)
+                panel.append(hint('Společný půdorys vychází u '+numberText(provenShape)+
+                    ' z nejlépe hodnocených variant. Nejde o potvrzené umístění ve hře: cesty, úroveň silnic a stavební nabídka zůstávají neověřené.'));
+            if(sequence.skippedBusySaleCandidates>0)
+                panel.append(hint('Před prodejem chráním '+numberText(sequence.skippedBusySaleCandidates)+
+                    ' budov s probíhající nebo dokončenou produkcí. Nezapočtený sběr nesmí zmizet při přestavbě.'));
             if(preferences.profile==='donor'&&sequence.plans.length) {
                 const observedReserves=readReserves(preferences);
                 const donorBudget=globalThis.QISettlementDonationBudget.budget({
