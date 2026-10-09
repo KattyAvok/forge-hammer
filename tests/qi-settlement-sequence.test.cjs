@@ -248,3 +248,18 @@ test('a second demolition is blocked if interim free population goes negative',(
         entities,definitions:defs,geometryIndex:index});
     assert.equal(r.plans.some(p=>p.steps.filter(x=>x.type==='sell').length===2),false);
 });
+
+test('unaffordable top-ranked buildings do not displace cheaper valid planning options',()=>{
+    const defs={};
+    for(let i=0;i<18;i++){
+        defs['expensive_'+i]=def('High-yield QI '+i,'production',-20,0,
+            {[M]:250000,[S]:250000,[A]:500},
+            {[S]:20000-i});
+    }
+    defs.printer=printer;
+    const r=seq.explore({stock:inventory,entities:[],definitions:defs,
+        profile:'donor'});
+    assert.ok(r.candidateDefinitions>=1);
+    assert.ok(r.plans.some(p=>p.steps.some(s=>s.building==='Printer')));
+    assert.equal(r.plans.some(p=>p.steps.some(s=>s.building.startsWith('High-yield QI'))),false);
+});
