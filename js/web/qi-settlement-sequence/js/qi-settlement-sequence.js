@@ -105,7 +105,28 @@
         newState.lastBuilding=key;
         return newState;
     }
+    // Do not liquidate unique/strategic production chains while their
+    // downstream consumption, selected recipe or replacement is unknown.
+    // All Ropery sites stay protected until Rope demand can be modeled.
+    // Equally, unsupported production options cannot be assigned zero loss.
+    function saleRisk(def,stock={},boosts={}) {
+        if(!def)return 'missing-definition';
+        if(/\bropery\b/i.test(String(def.name||'')))
+            return 'strategic-rope-chain-unpriced';
+        const choices=def.components?.AllAge?.production?.options;
+        if(!Array.isArray(choices)||choices.length===0)return null;
+        const sampled=production.estimateCycle(def,stock,boosts);
+        if(sampled.status!=='estimated-cycle')
+            return 'unmodeled-production-loss';
+        const knownEconomic=new Set([
+            'guild_raids_money','guild_raids_supplies','guild_raids_chrono_alloy'
+        ]);
+        if(Object.keys(sampled.output||{}).some(k=>!knownEconomic.has(k)))
+            return 'strategic-goods-production';
+        return null;
+    }
     function applySell(state,key,def,boosts={}) {
+        if(saleRisk(def,state.stock,boosts))return null;
         const info=effectAndCycle(def,state.stock,boosts);
         if(!info)return null;
         const fx=info.e;
@@ -150,7 +171,7 @@
                 candidate:c
             }));
     }
-    function candidatesForSelling(entities,definitions,geometryIndex) {
+    function candidatesForSelling(entities,definitions,geometryIndex,stock,boosts) {
         if(!Array.isArray(entities))return [];
         const rows=[],found=new Set();
         for(const e of entities) {
@@ -160,6 +181,7 @@
                 def.type==='main_building'||def.type==='impediment'||
                 def.type==='off_grid'||/construct|building|producing|completed/i.test(e?.state?.__class__||''))
                 continue;
+            if(saleRisk(def,stock,boosts))continue;
             const fx=advisor.effects(def);
             if(!fx||fx.bonuses.some(b=>b.value!==0))continue;
             const signature=id===undefined?key+'@'+e.x+','+e.y:String(id);
@@ -257,7 +279,12 @@
             definitions[e?.cityentity_id] &&
             !['street','main_building','impediment','off_grid']
                 .includes(definitions[e.cityentity_id].type)).length;
-        const sellers=candidatesForSelling(entities,definitions,geometryIndex);
+        const strategicSaleExclusions=entities.filter(e=>{
+            const def=definitions[e?.cityentity_id];
+            return def && saleRisk(def,stock,boosts)!==null &&
+                !['street','main_building','impediment','off_grid'].includes(def.type);
+        }).length;
+        const sellers=candidatesForSelling(entities,definitions,geometryIndex,stock,boosts);
         const all=[],first=[];
         for(const build of buildingOptions) {
             const n=applyBuild(starts,build.key,build.def,allowedReserves,boosts);
@@ -351,6 +378,7 @@
             inspectedOriginalBuildings:sellers.length,
             doubleSalePairsInspected:inspectedSalePairs,
             skippedBusySaleCandidates:busySaleBuildings,
+            skippedStrategicSaleCandidates:strategicSaleExclusions,
             consideredVariants:first.length+all.length,
             plans:top,
             reserveMode:profile!=='donor'?'not-applicable':
@@ -364,12 +392,13 @@
                 'node-costs-unverified','future-production-not-spent',
                 'existing-production-euphoria-rebalance-unmodeled',
                 'uncollected-producing-or-completed-buildings-protected-from-sale',
+                'critical-rope-chain-and-unknown-recipe-loss-protected-from-sale',
                 'at-most-two-sales-before-purchase-no-reimbursement',
                 'donation-not-safe-without-plan-and-node'
             ],
             gameActionsPerformed:false};
     }
-    const api=Object.freeze({explore,applyBuild,applySell,factor});
+    const api=Object.freeze({explore,applyBuild,applySell,saleRisk,factor});
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.QISettlementSequence=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
