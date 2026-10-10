@@ -620,3 +620,70 @@ test('live-style synthetic QI city accepts one concise consistency report withou
     assert.equal(contents.includes('198765'),false);
     assert.equal(contents.includes('215432'),false);
 });
+
+test('live Donor regression reconciles 84 QA choices and protects Ropery',()=>{
+    const t=setup();t.FH.ActiveMap='guild_raids';
+    t.store.set('QISettlementSupportSettingsV1_world1_123',
+        JSON.stringify({profile:'donor',stage:'day1a',
+            reserveMoney:'',reserveSupplies:''}));
+    t.FH.Main.CityEntities.ropery={
+        name:'Ropery',type:'production',components:{AllAge:{
+            placement:{size:{x:2,y:2}},
+            staticResources:{resources:{resources:{guild_raids_population:-20}}},
+            production:{options:[{time:3600,products:[{
+                playerResources:{resources:{guild_raids_rope:40}}
+            }]},{time:7200,products:[{
+                playerResources:{resources:{guild_raids_rope:100}}
+            }]}]}
+        }}
+    };
+    t.FH.Main.CityEntities.clapboard={
+        name:'Clapboard House',type:'residential',components:{AllAge:{
+            placement:{size:{x:2,y:2}},
+            staticResources:{resources:{resources:{guild_raids_population:150}}},
+            production:{options:[{time:36000,products:[{
+                playerResources:{resources:{guild_raids_money:10000}}
+            }]}]},
+            constructionCost:{cost:{resources:{
+                guild_raids_money:210000,guild_raids_supplies:200000,
+                guild_raids_chrono_alloy:1000
+            }}}
+        }}
+    };
+    t.send('GuildRaidsService','getState',{
+        __class__:'GuildRaidsRunningState',endsAt:2000000000,
+        raidInstance:{difficultyLevel:10}
+    });
+    t.send('ResourceService','getPlayerResources',{resources:{
+        guild_raids_money:800000,guild_raids_supplies:700000,
+        guild_raids_chrono_alloy:9000,guild_raids_action_points:250,
+        guild_raids_population:300,guild_raids_total_population:1200,
+        guild_raids_happiness:2600
+    }});
+    t.send('CityMapService','getCityMap',{
+        gridId:'guild_raids',unlocked_areas:[{x:500,y:500,width:8,length:8}],
+        entities:[{id:777123,cityentity_id:'ropery',x:500,y:500,
+            state:{__class__:'IdleState'}}]
+    });
+    t.send('GuildRaidsMapService','getOverview',{
+        nodes:Array.from({length:28},(_,i)=>({nodeID:'private-'+i,
+            choices:[100,200,400].map(qa=>({
+                requirements:{resources:{guild_raids_action_points:qa}}
+            }))
+        }))
+    });
+    const report=JSON.parse(t.api.ShareReport());
+    assert.equal(report.nodeBudget.status,'qa-only-option-candidates');
+    assert.equal(report.nodeBudget.coverage.qaOnlyCostBundles,84);
+    assert.equal(report.nodeBudget.coverage.nodesWithMultipleQAOptions,28);
+    assert.equal(report.qaEvidenceAgreement.status,'aligned');
+    assert.equal(report.qaEvidenceAgreement.qaBundlesFromContract,84);
+    assert.ok(report.sequencePreview.skippedStrategicSaleCandidates>=1);
+    assert.ok(report.sequencePreview.examplePlans.every(plan=>
+        plan.operations.every(op=>op.type!=='sell'||op.building!=='Ropery')));
+    assert.equal(report.nodeBudget.donationInstructionAllowed,false);
+    assert.equal(report.consistency.actualGameplayActionsVerified,false);
+    const serialized=JSON.stringify(report);
+    assert.equal(serialized.includes('777123'),false);
+    assert.equal(serialized.includes('private-'),false);
+});
