@@ -79,3 +79,55 @@ test('unknown positive resource in otherwise valid QI node price cannot be ignor
  assert.equal(r.coverage.grossBudgetCovered,0);
  assert.equal(r.donationInstructionAllowed,false);
 });
+
+test('live 28-node sample with three QA alternatives per node is recognized',()=>{
+    const nodes=Array.from({length:28},(_,i)=>({
+        id:'private-node-'+i,
+        choices:[
+            {requirements:{resources:{guild_raids_action_points:100}}},
+            {requirements:{resources:{guild_raids_action_points:200}}},
+            {requirements:{resources:{guild_raids_action_points:400}}}
+        ]
+    }));
+    const snap=nodeBudget.extract({nodes});
+    const r=nodeBudget.evaluate(snap,{guild_raids_action_points:250},{});
+    assert.equal(r.status,'qa-only-option-candidates');
+    assert.equal(r.coverage.nodesObserved,28);
+    assert.equal(r.coverage.qaOnlyCostBundles,84);
+    assert.equal(r.coverage.nodesWithQACostCandidates,28);
+    assert.equal(r.coverage.nodesWithMultipleQAOptions,28);
+    assert.equal(r.coverage.qaGrossCoveredOptions,56);
+    assert.equal(r.coverage.qaNotCoveredOptions,28);
+    assert.equal(r.coverage.explicitlyPricedCandidates,0);
+    assert.equal(r.qaResourceFieldObserved,true);
+    assert.equal(r.qaCostSemanticsVerified,false);
+    assert.equal(r.safeDonation,null);
+    assert.equal(r.donationInstructionAllowed,false);
+    const output=JSON.stringify(r);
+    assert.equal(output.includes('private-node'),false);
+    for(const amount of ['"100"','"200"','"400"'])
+        assert.equal(output.includes(amount),false);
+});
+test('QA and QI money in one price are not mistaken for a free-QA purchase',()=>{
+    const snap=nodeBudget.extract({nodes:[{
+        payment:{resources:{guild_raids_action_points:100,
+            guild_raids_money:25000}}
+    }]});
+    const r=nodeBudget.evaluate(snap,{
+        guild_raids_action_points:50,guild_raids_money:50000
+    },{guild_raids_money:5000});
+    assert.equal(r.coverage.mixedQAAndGoodsCostBundles,1);
+    assert.equal(r.coverage.qaNotCoveredOptions,1);
+    assert.equal(r.coverage.explicitlyPricedCandidates,1);
+    assert.equal(r.coverage.grossBudgetCovered,1);
+    assert.equal(r.donationInstructionAllowed,false);
+});
+test('QA-only bundle without QA stock remains an unknown affordable candidate',()=>{
+    const snap=nodeBudget.extract({nodes:[{
+        cost:{resources:{guild_raids_action_points:110}}
+    }]});
+    const r=nodeBudget.evaluate(snap,{guild_raids_money:100000},{});
+    assert.equal(r.coverage.qaUnknownStockOptions,1);
+    assert.equal(r.coverage.grossBudgetCovered,0);
+    assert.equal(r.status,'qa-only-option-candidates');
+});
