@@ -103,7 +103,8 @@
         totals.rewardBundles+=n.groups.filter(g=>g.reward).length;
         // A QA-only alternative is NOT a resource donation price.
         // Multiple QA options must never be collapsed into one chosen price.
-        const goodsPrices=prices.filter(g=>g.amounts!==null);
+        const goodsPrices=prices.filter(g=>g.amounts!==null ||
+            g.unknownAdditionalCost);
         if(prices.length!==1 || goodsPrices.length!==1){
             if(goodsPrices.length>1)totals.ambiguousNodePricing++;
             continue;
