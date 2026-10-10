@@ -224,6 +224,27 @@
                 });
             }
         }
+        const sourceContracts=contracts.report();
+        const observedNodes=complete?nodeBudgetCoverage():
+            {status:'missing-or-stale-state',safeDonation:null};
+        const sourceQA=sourceContracts.nodeResourceBundles;
+        const possibleQA=sourceQA?.keys?.guild_raids_action_points;
+        const qaCostLike=observedNodes.coverage?
+            observedNodes.coverage.qaOnlyCostBundles+
+                observedNodes.coverage.mixedQAAndGoodsCostBundles:null;
+        const comparisonReady=typeof possibleQA==='number' &&
+            qaCostLike!==null && sourceQA.context?.reward===0 &&
+            sourceQA.context?.unclassified===0 &&
+            sourceQA.context?.possibleCost===possibleQA &&
+            !sourceQA.nodeLimitReached && !observedNodes.dataTruncated;
+        const qaEvidenceAgreement={
+            status:!comparisonReady?'not-comparable':
+                possibleQA===qaCostLike?'aligned':'different-scope-or-parser',
+            qaBundlesFromContract:typeof possibleQA==='number'?possibleQA:null,
+            qaCostCandidateBundles:qaCostLike,
+            donorCostSemanticsVerified:false,
+            nodeAlternativeSelectionVerified:false
+        };
         let hoursRemaining=null;
         if(typeof state.seasonEnd==='number'&&
             state.seasonEnd>1000000000&&state.seasonEnd<9999999999)
@@ -236,11 +257,12 @@
                 hoursRemainingFromRunTimestamp:hoursRemaining},
             scenario:current,
             productionReadiness:complete?globalThis.QISettlementReadiness.summarize(state.map.entities):{status:'missing-or-stale-state'},
-            nodeBudget:complete?nodeBudgetCoverage():{status:'missing-or-stale-state',safeDonation:null},
+            nodeBudget:observedNodes,
+            qaEvidenceAgreement,
             geometry:geom,
             placementCandidates:placements,
             metadata:{
-                contractEvidence:contracts.report(),
+                contractEvidence:sourceContracts,
                 catalogCoverage:catalog,
                 production:production?{
                     buildingsExamined:production.buildingsExamined,
@@ -296,6 +318,7 @@
                 }:null;
             })(),
             nodeBudget:full.nodeBudget,
+            qaEvidenceAgreement:full.qaEvidenceAgreement,
             geometry:full.geometry,
             placementCandidates:full.placementCandidates.slice(0,6),
             catalog:full.metadata.catalogCoverage,
@@ -335,6 +358,7 @@
                     returnedDoubleSalePlans:p.plans.filter(plan=>
                         plan.steps.filter(step=>step.type==='sell').length===2).length,
                     skippedBusySaleCandidates:p.skippedBusySaleCandidates,
+                    skippedStrategicSaleCandidates:p.skippedStrategicSaleCandidates,
                     jointFootprintFitPlans:p.plans.filter(plan=>
                         plan.placementEvidence==='geometry-sequence-fit').length,
                     candidateDefinitions:p.candidateDefinitions,
@@ -718,6 +742,10 @@
             if(sequence.skippedBusySaleCandidates>0)
                 panel.append(hint('Před prodejem chráním '+numberText(sequence.skippedBusySaleCandidates)+
                     ' budov s probíhající nebo dokončenou produkcí. Nezapočtený sběr nesmí zmizet při přestavbě.'));
+            if(sequence.skippedStrategicSaleCandidates>0)
+                panel.append(hint('Z ochrany strategie nelze nyní prodávat '+
+                    numberText(sequence.skippedStrategicSaleCandidates)+
+                    ' budov: zejména Ropery, výrobu strategických surovin nebo budovy s neoceněnou volbou výroby.'));
             if(preferences.profile==='donor'&&sequence.plans.length) {
                 const observedReserves=readReserves(preferences);
                 const donorBudget=globalThis.QISettlementDonationBudget.budget({
@@ -859,6 +887,13 @@
                         numberText(nodes.coverage.explicitlyPricedCandidates)));
                     panel.append(row('Nezařazené surovinové balíčky uzlů',
                         numberText(nodes.coverage.unclassifiedResourceBundles)));
+                    if(nodes.coverage.qaOnlyCostBundles>0) {
+                        panel.append(row('Možné QA náklady z mapy',
+                            numberText(nodes.coverage.qaOnlyCostBundles)+' variant'));
+                        panel.append(row('Uzly s více možnostmi QA',
+                            numberText(nodes.coverage.nodesWithMultipleQAOptions)));
+                        panel.append(hint('Toto jsou alternativy Quantum Actions v mapových datech, nikoli potvrzená cena darování. Nejde o zásoby k odeslání.'));
+                    }
                     if(nodes.coverage.explicitlyPricedCandidates)
                         panel.append(hint('Předběžně pokryté zdroji a plánovací rezervou: '+
                             numberText(nodes.coverage.protectedBudgetCovered)+
