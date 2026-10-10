@@ -1,0 +1,31 @@
+/* QI Settlement Support — AGPL-3.0 */
+#qiSettlementSupport { min-width: 345px; max-width: min(550px, 95vw); }
+#qiSettlementSupport .qi-support { padding: 12px; line-height: 1.45; }
+#qiSettlementSupport .qi-support h3 { margin: 14px 0 7px; font-size: 1.06em; font-weight: 700; }
+#qiSettlementSupport .qi-support-profile { display:flex; align-items:center; gap: 10px; margin-bottom: 8px; }
+#qiSettlementSupport .qi-support-profile select { color:inherit; background:var(--black-50, #333); border:1px solid #888; padding: 4px; flex:1; min-width:0; }
+#qiSettlementSupport .qi-support-row { display:flex; justify-content:space-between; gap:10px; padding:4px 2px; border-bottom:1px solid rgba(128,128,128,.3); }
+#qiSettlementSupport .qi-support-row strong { text-align:right; font-variant-numeric:tabular-nums; }
+#qiSettlementSupport .qi-support-note { font-size:.92em; opacity:.85; margin:6px 0; }
+#qiSettlementSupport .qi-support-reserve { display:flex; align-items:center; justify-content:space-between; margin:7px 0; gap:12px; }
+#qiSettlementSupport .qi-support-reserve input { width:130px; box-sizing:border-box; border:1px solid #999; padding:4px; background:var(--black-50, #333); color:inherit; }
+
+#qiSettlementSupport .qi-support-stage { display:flex; align-items:center; gap:10px; margin:8px 0; }
+#qiSettlementSupport .qi-support-stage select { min-width:0; flex:1; color:inherit; background:var(--black-50, #333); border:1px solid #888; padding:4px; }
+#qiSettlementSupport .qi-support-steps { padding-left:22px; margin:8px 0; }
+#qiSettlementSupport .qi-support-steps li { margin:5px 0; }
+
+#qiSettlementSupport .qi-support-advice { margin:6px 0 12px; padding-left:22px; }
+#qiSettlementSupport .qi-support-advice li { margin-bottom:10px; border-bottom:1px solid rgba(128,128,128,.2); padding-bottom:6px; }
+#qiSettlementSupport .qi-support-advice strong { display:block; font-weight:700; }
+#qiSettlementSupport .qi-support-advice p { margin:3px 0; }
+#qiSettlementSupport .qi-support-advice small { display:block; opacity:.75; }
+
+#qiSettlementSupport .qi-support-scenarios { padding-left:22px; margin:8px 0 14px; }
+#qiSettlementSupport .qi-support-scenarios li { padding:6px 0; border-bottom:1px solid rgba(128,128,128,.25); }
+#qiSettlementSupport .qi-support-scenarios strong { display:block; }
+#qiSettlementSupport .qi-support-scenarios p { margin:3px 0; }
+#qiSettlementSupport .qi-support-scenarios small { display:block; opacity:.8; margin:3px 0; }
+
+#qiSettlementSupport .qi-support-blocked { margin:5px 0 12px; padding-left:20px; opacity:.86; }
+#qiSettlementSupport .qi-support-blocked li { margin:5px 0; }

@@ -1,0 +1,24 @@
+name: QI Settlement Support checks
+
+on:
+  pull_request:
+    paths:
+      - 'js/web/qi-settlement-*/**'
+      - 'tests/qi-settlement-*.test.cjs'
+      - 'js/internal.json'
+      - '.github/workflows/qi-settlement-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qi-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run read-only QI tests
+        run: node --test tests/qi-settlement-*.test.cjs
