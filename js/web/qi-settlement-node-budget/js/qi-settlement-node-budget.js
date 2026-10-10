@@ -14,6 +14,7 @@
  const costToken=/^(?:cost|costs|price|prices|requirement|requirements|payment|payments)$/i;
  const rewardToken=/^(?:reward|rewards|loot|prize|prizes)$/i;
  const knownQA=new Set(['actionPoints','action_points','qaCost','requiredActionPoints']);
+ const qaKey='guild_raids_action_points';
  function extract(response) {
     if(!Array.isArray(response?.nodes))
         return {status:'no-nodes',nodes:[],nodeCount:0,limited:false};
@@ -33,23 +34,27 @@
             for(const [k,v] of Object.entries(value).slice(0,80)){
                 if(knownQA.has(k)&&finite(v))qaPaths.add(k);
                 if(k==='resources'&&v&&typeof v==='object'&&!Array.isArray(v)) {
-                    const parsed={};let usable=true;
+                    const parsed={};let usable=true,qa=null;
                     for(const [currencyKey,amount] of Object.entries(v)) {
                         if(currency.test(currencyKey)&&finite(amount)&&amount>0)
                             parsed[currencyKey]=amount;
+                        else if(currencyKey===qaKey&&finite(amount)&&amount>0)
+                            qa=amount;
                         else if(amount!==0)
-                            // Any unknown nonzero cost (including diamonds,
-                            // generic goods, or QA) makes the quote incomplete.
+                            // Unknown nonzero currencies must not be silently ignored.
                             usable=false;
                     }
-                    if(Object.keys(parsed).length){
+                    if(Object.keys(parsed).length||qa!==null){
                         const reward=parents.some(x=>rewardToken.test(x));
                         const cost=parents.some(x=>costToken.test(x));
                         groups.push({
                             cost:!reward&&cost,
-                            reward:reward,
+                            reward,
                             unclassified:!reward&&!cost,
-                            amounts:usable?parsed:null
+                            amounts:usable&&Object.keys(parsed).length?parsed:null,
+                            qaCandidate:usable?qa:null,
+                            qaObserved:qa!==null,
+                            unknownAdditionalCost:!usable
                         });
                     }
                 }
@@ -72,19 +77,38 @@
         explicitlyPricedCandidates:0,unclassifiedResourceBundles:0,
         rewardBundles:0,ambiguousNodePricing:0,
         grossBudgetCovered:0,protectedBudgetCovered:0,
-        unprotectedGrossMatches:0,unknownBalances:0,qaFieldCandidates:0};
+        unprotectedGrossMatches:0,unknownBalances:0,qaFieldCandidates:0,
+        qaOnlyCostBundles:0,nodesWithQACostCandidates:0,
+        nodesWithMultipleQAOptions:0,qaGrossCoveredOptions:0,
+        qaNotCoveredOptions:0,qaUnknownStockOptions:0,
+        mixedQAAndGoodsCostBundles:0};
     const sourceKinds={money:0,supplies:0,chrono_alloy:0,other:0};
     const candidatePriceNodes=[];
     for(const n of snapshot.nodes){
         if(n.qaCandidateKeys.length)totals.qaFieldCandidates++;
         const prices=n.groups.filter(g=>g.cost);
+        const qaGroups=prices.filter(g=>g.qaObserved);
+        if(qaGroups.length)totals.nodesWithQACostCandidates++;
+        if(qaGroups.length>1)totals.nodesWithMultipleQAOptions++;
+        for(const group of qaGroups){
+            if(group.amounts)totals.mixedQAAndGoodsCostBundles++;
+            else totals.qaOnlyCostBundles++;
+            if(group.qaCandidate!==null){
+                if(!finite(stock?.[qaKey]))totals.qaUnknownStockOptions++;
+                else if(stock[qaKey]>=group.qaCandidate)totals.qaGrossCoveredOptions++;
+                else totals.qaNotCoveredOptions++;
+            }else totals.qaUnknownStockOptions++;
+        }
         totals.unclassifiedResourceBundles+=n.groups.filter(g=>g.unclassified).length;
         totals.rewardBundles+=n.groups.filter(g=>g.reward).length;
-        if(prices.length!==1){
-            if(prices.length>1)totals.ambiguousNodePricing++;
+        // A QA-only alternative is NOT a resource donation price.
+        // Multiple QA options must never be collapsed into one chosen price.
+        const goodsPrices=prices.filter(g=>g.amounts!==null);
+        if(prices.length!==1 || goodsPrices.length!==1){
+            if(goodsPrices.length>1)totals.ambiguousNodePricing++;
             continue;
         }
-        const price=prices[0].amounts;
+        const price=goodsPrices[0].amounts;
         if(!price){totals.unknownBalances++;continue;}
         totals.explicitlyPricedCandidates++;
         for(const k of Object.keys(price)){
@@ -111,9 +135,13 @@
     }
     return {
         status:totals.explicitlyPricedCandidates?
-            'unverified-cost-candidates':'unclassified-node-data',
+            'unverified-cost-candidates':
+            totals.qaOnlyCostBundles?'qa-only-option-candidates':'unclassified-node-data',
         coverage:totals,
-        resourceKeyCoverage:sourceKinds,
+        resourceKeyCoverage:{...sourceKinds,
+            action_points:totals.qaOnlyCostBundles+totals.mixedQAAndGoodsCostBundles},
+        qaResourceFieldObserved:totals.nodesWithQACostCandidates>0,
+        qaAlternativesRequireValidation:totals.nodesWithMultipleQAOptions>0,
         dataTruncated:snapshot.limited,
         nodeCostSemanticsVerified:false,
         nodeAvailabilityVerified:false,
