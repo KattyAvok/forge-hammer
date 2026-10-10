@@ -276,3 +276,46 @@ test('Rope consumed by construction remains visible in total plan balances',()=>
     assert.equal(plan.remaining.guild_raids_rope,10);
     assert.equal(plan.executable,false);
 });
+
+test('live Donor regression never recommends selling a critical Ropery for Clapboard',()=>{
+    const ropery=def('Ropery','production',-60,0,
+        {[M]:45000,[S]:22500,[A]:200},
+        {guild_raids_rope:100});
+    const clapboard=def('Clapboard House','residential',150,0,
+        {[M]:210000,[S]:200000,[A]:1000},{[M]:15000});
+    const city={...inventory,[M]:1200000,[S]:1000000,[A]:10000,
+        [P]:500,[T]:1200,[H]:2800};
+    const r=seq.explore({stock:city,
+        entities:[{id:999,cityentity_id:'ropery',x:0,y:0,
+            state:{__class__:'IdleState'}}],
+        definitions:{ropery,clapboard},profile:'donor'});
+    assert.ok(r.skippedStrategicSaleCandidates>=1);
+    assert.equal(r.plans.some(p=>p.steps.some(step=>
+        step.type==='sell'&&step.building==='Ropery')),false);
+    assert.equal(seq.saleRisk(ropery,city,{}),'strategic-rope-chain-unpriced');
+    assert.equal(r.gameActionsPerformed,false);
+});
+test('multi-choice production without verified yield is protected from demolition',()=>{
+    const unknown=def('Mystery Workshop','production',-20,0,
+        {[M]:12000}, {[S]:500});
+    unknown.components.AllAge.production.options.push({
+        time:600,products:[{playerResources:{resources:{guild_raids_rope:100}}}]
+    });
+    assert.equal(seq.saleRisk(unknown,inventory,{}),'unmodeled-production-loss');
+    const r=seq.explore({stock:inventory,
+        entities:[{id:4,cityentity_id:'unknown',x:0,y:0}],
+        definitions:{unknown,printer},profile:'donor'});
+    assert.equal(r.inspectedOriginalBuildings,0);
+    assert.equal(r.plans.some(p=>p.steps.some(s=>s.type==='sell')),false);
+});
+test('a known active goods-producing site is still strategic even with one option',()=>{
+    const workshop=def('Special Workshop','production',-20,0,
+        {[M]:10000},{guild_raids_rope:20});
+    assert.equal(seq.saleRisk(workshop,inventory,{}),'strategic-goods-production');
+});
+test('a single modeled supplies producer may still be considered for a replacement',()=>{
+    assert.equal(seq.saleRisk(oldFactory,inventory,{}),null);
+    const r=explore({entities:[{id:5,cityentity_id:'oldFactory',x:0,y:0,
+        state:{__class__:'IdleState'}}]});
+    assert.equal(r.inspectedOriginalBuildings>=1,true);
+});
